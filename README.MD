@@ -8,9 +8,13 @@ feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues
 
 ## Device support
 BESEN BS20
+
 FTE Maximal Wallbox
+
 Morec Wallbox
+
 Astoneves 22kW Wallbox EV
+
 
 ## Installation
 
