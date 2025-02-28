@@ -1,6 +1,6 @@
 # Home Assistant Besen BS20 integration 
 
-It's a quick and dirty integrtion for the BESEN BS20 wall EV charger.
+It's a quick and dirty integration for the BESEN BS20 wall EV charger.
 If you have any suggestions (for example unmapped vaules, or others) please
 feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues).
 
