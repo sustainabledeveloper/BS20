@@ -24,3 +24,9 @@ the integration will be available to install like any other.
 
 ## Configuration
 
+You need to know the IP address of the wallbox. If you have no idea, use Wireshark, and scan for the destination address 255.255.255.255. Where the destination port is 28376, that will be
+your EV charger.
+
+You need the serial number of the device, which can be found in the EVSEMaster app.
+
+And also you need the password, you already set in the EVSEMaster. If you not, the default password will be 123456.
