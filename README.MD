@@ -7,7 +7,10 @@ feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues
 [![BuyMeCoffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/schy)
 
 ## Device support
-
+BESEN BS20
+FTE Maximal Wallbox
+Morec Wallbox
+Astoneves 22kW Wallbox EV
 
 ## Installation
 
