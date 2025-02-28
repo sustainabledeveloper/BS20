@@ -1,0 +1,14 @@
+{
+  "domain": "besen",
+  "name": "Besen BS20",
+  "codeowners": ["@sustainabledeveloper"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/sustainabledeveloper/BS20",
+  "issue_tracker": "https://github.com/sustainabledeveloper/BS20/issues",
+  "iot_class": "local_push",
+  "requirements": [],
+  "version": "1.0.0",
+  "integration_type": "device",
+  "supported_brands": ["besen"]
+}
