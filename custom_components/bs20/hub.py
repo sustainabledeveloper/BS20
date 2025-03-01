@@ -2,6 +2,7 @@
 import string
 import socket
 import logging
+import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -20,22 +21,23 @@ class Hub:
 
     _devices = {}
     device_data = {}
+    _online_timer = None
 
     def __init__(self, hass: HomeAssistant, host: str, serial: str, password: str) -> None:
         self._hass = hass
         self._host = host
         self._serial = serial
         self._password = password
-        self.online = True
+        self.online = False
         self.udp_transport = None
 
     async def init_numbers(self, hass, async_add_entities: AddEntitiesCallback):
         # TODO feature to set the Amper of charging
 
         # new_devices = []
-        # instance = Electricity(hass, self, "currentVoltageP1", "Current Voltage P1")
-        # self._devices["currentVoltageP1"] = instance
-        # self.device_data["currentVoltageP1"] = -1
+        # instance = Electricity(hass, self, "currentVoltageL1", "Current Voltage P1")
+        # self._devices["currentVoltageL1"] = instance
+        # self.device_data["currentVoltageL1"] = -1
         # new_devices.append(instance)
 
         # async_add_entities(new_devices)
@@ -46,34 +48,34 @@ class Hub:
 
     async def init_sensors(self, hass, async_add_entities: AddEntitiesCallback):
         new_devices = []
-        instance = Voltage(hass, self, "currentVoltageP1", "Current Voltage P1")
-        self._devices["currentVoltageP1"] = instance
-        self.device_data["currentVoltageP1"] = None
+        instance = Voltage(hass, self, "currentVoltageL1", "Current Voltage L1")
+        self._devices["currentVoltageL1"] = instance
+        self.device_data["currentVoltageL1"] = None
         new_devices.append(instance)
 
-        instance = Voltage(hass, self, "currentVoltageP2", "Current Voltage P2")
-        self._devices["currentVoltageP2"] = instance
-        self.device_data["currentVoltageP2"] = None
+        instance = Voltage(hass, self, "currentVoltageL2", "Current Voltage L2")
+        self._devices["currentVoltageL2"] = instance
+        self.device_data["currentVoltageL2"] = None
         new_devices.append(instance)
 
-        instance = Voltage(hass, self, "currentVoltageP3", "Current Voltage P3")
-        self._devices["currentVoltageP3"] = instance
-        self.device_data["currentVoltageP3"] = None
+        instance = Voltage(hass, self, "currentVoltageL3", "Current Voltage L3")
+        self._devices["currentVoltageL3"] = instance
+        self.device_data["currentVoltageL3"] = None
         new_devices.append(instance)
 
-        instance = Current(hass, self, "currentCurrentP1", "Current Current P1")
-        self._devices["currentCurrentP1"] = instance
-        self.device_data["currentCurrentP1"] = None
+        instance = Current(hass, self, "currentCurrentL1", "Current Current L1")
+        self._devices["currentCurrentL1"] = instance
+        self.device_data["currentCurrentL1"] = None
         new_devices.append(instance)
 
-        instance = Current(hass, self, "currentCurrentP2", "Current Current P2")
-        self._devices["currentCurrentP2"] = instance
-        self.device_data["currentCurrentP2"] = None
+        instance = Current(hass, self, "currentCurrentL2", "Current Current L2")
+        self._devices["currentCurrentL2"] = instance
+        self.device_data["currentCurrentL2"] = None
         new_devices.append(instance)
 
-        instance = Current(hass, self, "currentCurrentP3", "Current Current P3")
-        self._devices["currentCurrentP3"] = instance
-        self.device_data["currentCurrentP3"] = None
+        instance = Current(hass, self, "currentCurrentL3", "Current Current L3")
+        self._devices["currentCurrentL3"] = instance
+        self.device_data["currentCurrentL3"] = None
         new_devices.append(instance)
 
         instance = Power(hass, self, "currentPower", "Charging power")
@@ -203,6 +205,16 @@ class Hub:
     @property
     def available(self) -> bool:
         return self.online
+    
+    async def _reset_online_timer(self):
+        if self._online_timer:
+            self._online_timer.cancel()
+
+        self._online_timer = asyncio.create_task(self._set_offline_after_timeout())
+
+    async def _set_offline_after_timeout(self):
+        await asyncio.sleep(60)  # Wait for 60 seconds
+        self.online = False
 
     async def decode_data(self, data: bytes, addr: tuple) -> None:
         self._port = addr[1]
@@ -216,6 +228,9 @@ class Hub:
             await self.process_command(command, serial, newData)
 
     async def process_command(self, command: int, serial: string, data: bytes):
+        await self._reset_online_timer()
+        self.online = True
+
         if command == 1:
             await self.process_login(data)
             await self.login_request()
@@ -224,14 +239,10 @@ class Hub:
             await self.login_response_response()
         elif command == 3:
             await self.keep_alive_response()
-            #getMonitoringData
-            #getpilestatus
         elif command == 4 or command == 13:
             await self.process_single_ac_status(data)
         elif command == 5 or command == 6:
             await self.process_charging_status(data)
-        else:
-            _LOGGER.error(f"Could not get command: {command}, serial: {serial}, data: {data.hex()}")
 
     def trim_bytes(self, data: bytes) -> bytes:
         return data.rstrip(b'\x00')
@@ -269,45 +280,43 @@ class Hub:
         cmd = self.get_tg(self._serial, self._password, 32771, [])
         await self.send_cmd(cmd)
         return
+    
+    def update_sensor(self, key: str, value):
+        if key not in self.device_data or value != self.device_data[key]:
+            self.device_data[key] = value
+            self._devices[key].async_update_callback(value)
 
     async def process_single_ac_status(self, data: bytes):
         lineId = data[0]
 
         currentVoltage = round(self.int_from_bytes(data[1:3]) * 0.1, 2)
-        self.device_data["currentVoltageP1"] = currentVoltage
-        self._devices["currentVoltageP1"].async_update_callback(currentVoltage)
+        self.update_sensor("currentVoltageL1", currentVoltage)
 
         currentElectricity = round(self.int_from_bytes(data[3:5]) * 0.01, 2)
-        self.device_data["currentCurrentP1"] = currentElectricity
-        self._devices["currentCurrentP1"].async_update_callback(currentElectricity)
+        self.update_sensor("currentCurrentL1", currentElectricity)
 
         currentPower = self.int_from_bytes(data[5:9]) / 1000.
-        self.device_data["currentPower"] = currentPower
-        self._devices["currentPower"].async_update_callback(currentPower)
+        self.update_sensor("currentPower", currentPower)
 
         currentAmount = self.int_from_bytes(data[9:13]) * 0.01
-        self.device_data["currentAmount"] = currentAmount
-        self._devices["currentAmount"].async_update_callback(currentAmount)
+        self.update_sensor("currentAmount", currentAmount)
 
         innerTemp = self.int_from_bytes(data[13:15])
         if innerTemp == 255:
             innerTemp = -1
         else:
             innerTemp = (innerTemp - 20000) * 0.01
-        self.device_data["innerTemperature"] = innerTemp
-        self._devices["innerTemperature"].async_update_callback(innerTemp)
+        self.update_sensor("innerTemperature", innerTemp)
 
         outerTemp = self.int_from_bytes(data[15:17])
         if outerTemp == 255:
             outerTemp = -1
         else:
             outerTemp = (outerTemp - 20000) * 0.01
-        self.device_data["outerTemperature"] = outerTemp
-        self._devices["outerTemperature"].async_update_callback(outerTemp)
+        self.update_sensor("outerTemperature", outerTemp)
 
         emergencyBtnState = data[17]
-        self.device_data["buttonState"] = emergencyBtnState
-        self._devices["buttonState"].async_update_callback(emergencyBtnState)
+        self.update_sensor("buttonState", emergencyBtnState)
 
         chargingState = data[18]
         if chargingState == 1:
@@ -316,30 +325,24 @@ class Hub:
             chargingState = "Connected"
         elif chargingState == 4:
             chargingState = "Charging"
-        self.device_data["chargingState"] = chargingState
-        self._devices["chargingState"].async_update_callback(chargingState)
+        self.update_sensor("chargingState", chargingState)
 
         outputState = data[19]
-        self.device_data["outputState"] = outputState
-        self._devices["outputState"].async_update_callback(outputState)
+        self.update_sensor("outputState", outputState)
 
         currentState = data[20]
 
         bVoltage = round(self.int_from_bytes(data[25:27]) * 0.1, 2)
-        self.device_data["currentVoltageP2"] = bVoltage
-        self._devices["currentVoltageP2"].async_update_callback(bVoltage)
+        self.update_sensor("currentVoltageL2", bVoltage)
 
         bElectricity = round(self.int_from_bytes(data[27:29]) * 0.01, 2)
-        self.device_data["currentCurrentP2"] = bElectricity
-        self._devices["currentCurrentP2"].async_update_callback(bElectricity)
+        self.update_sensor("currentCurrentL2", bElectricity)
 
         cVoltage = round(self.int_from_bytes(data[29:31]) * 0.1, 2)
-        self.device_data["currentVoltageP3"] = cVoltage
-        self._devices["currentVoltageP3"].async_update_callback(cVoltage)
+        self.update_sensor("currentVoltageL3", cVoltage)
 
         cElectricity = round(self.int_from_bytes(data[31:33]) * 0.01, 2)
-        self.device_data["currentCurrentP3"] = cElectricity
-        self._devices["currentCurrentP3"].async_update_callback(cElectricity)
+        self.update_sensor("currentCurrentL3", cElectricity)
 
         if len(data) > 33:
             currentState = data[34]
@@ -370,31 +373,24 @@ class Hub:
         elif currentState == 255:
             currentState = "--"
 
-        self.device_data["currentState"] = currentState
-        self._devices["currentState"].async_update_callback(currentState)
-
-        _LOGGER.warning(f"ProcessAC currentVoltage:{currentVoltage} currentElectricity:{currentElectricity} data: {data.hex()}")
+        self.update_sensor("currentState", currentState)
         
         #missing indexes: 21-24 32-33 35+
         missing2 = data[21:25].hex()
-        self.device_data["missing2"] = missing2
-        self._devices["missing2"].async_update_callback(missing2)
+        self.update_sensor("missing2", missing2)
 
         missing3 = data[32:34].hex()
-        self.device_data["missing3"] = missing3
-        self._devices["missing3"].async_update_callback(missing3)
+        self.update_sensor("missing3", missing3)
 
         if len(data) > 35:
             missing4 = data[35:len(data)].hex()
-            self.device_data["missing4"] = missing4
-            self._devices["missing4"].async_update_callback(missing4)
+            self.update_sensor("missing4", missing4)
 
         return
 
     async def process_charging_status(self, data: bytes):
         port = data[0]
-        self.device_data["port"] = port
-        self._devices["port"].async_update_callback(port)
+        self.update_sensor("port", port)
 
         # currentState = data[1]
         # if len(data) > 74:
@@ -403,16 +399,13 @@ class Hub:
         # self._devices["chargeCurrentState"].async_update_callback(currentState)
 
         chargeId = self.trim_bytes(data[2:18]).decode('ascii')
-        self.device_data["chargeId"] = chargeId
-        self._devices["chargeId"].async_update_callback(chargeId)
+        self.update_sensor("chargeId", chargeId)
 
         startType = data[18]
-        self.device_data["startType"] = startType
-        self._devices["startType"].async_update_callback(startType)
+        self.update_sensor("startType", startType)
 
         chargeType = data[19]
-        self.device_data["chargeType"] = chargeType
-        self._devices["chargeType"].async_update_callback(chargeType)
+        self.update_sensor("chargeType", chargeType)
 
         chargeParam1 = self.int_from_bytes(data[20:22])
         chargeParam2 = self.int_from_bytes(data[22:24])
@@ -423,34 +416,27 @@ class Hub:
             reservationDate = "--"
         else:
             reservationDate = self.convert_bad_timestamp(reservationDate, self._hass.config.time_zone)
-        self.device_data["reservationDate"] = reservationDate
-        self._devices["reservationDate"].async_update_callback(reservationDate)
+        self.update_sensor("reservationDate", reservationDate)
 
         userId = self.trim_bytes(data[30:46]).decode('ascii')
 
         maxElectricity = data[46]
-        self.device_data["maxElectricity"] = maxElectricity
-        self._devices["maxElectricity"].async_update_callback(maxElectricity)
+        self.update_sensor("maxElectricity", maxElectricity)
 
         startDate = self.convert_bad_timestamp(self.int_from_bytes(data[47:51]), self._hass.config.time_zone)
-        self.device_data["startDate"] = startDate
-        self._devices["startDate"].async_update_callback(startDate)
+        self.update_sensor("startDate", startDate)
 
         chargedTime = self.seconds_to_hhmmss(self.int_from_bytes(data[51:55]))
-        self.device_data["chargedTime"] = chargedTime
-        self._devices["chargedTime"].async_update_callback(chargedTime)
+        self.update_sensor("chargedTime", chargedTime)
 
         chargeStartPower = self.int_from_bytes(data[55:59]) * 0.01
-        self.device_data["chargeStartPower"] = chargeStartPower
-        self._devices["chargeStartPower"].async_update_callback(chargeStartPower)
+        self.update_sensor("chargeStartPower", chargeStartPower)
 
         chargeCurrentPower = self.int_from_bytes(data[59:63]) * 0.01
-        self.device_data["chargeCurrentPower"] = chargeCurrentPower
-        self._devices["chargeCurrentPower"].async_update_callback(chargeCurrentPower)
+        self.update_sensor("chargeCurrentPower", chargeCurrentPower)
 
         chargePower = self.int_from_bytes(data[63:67]) * 0.01
-        self.device_data["chargePower"] = chargePower
-        self._devices["chargePower"].async_update_callback(chargePower)
+        self.update_sensor("chargePower", chargePower)
 
         chargePrice = self.int_from_bytes_little(data[67:71]) * 0.01
 
@@ -461,8 +447,7 @@ class Hub:
         #missin indexes: 
         if len(data) > 47:
             missing1 = data[74:len(data)].hex()
-            self.device_data["missing1"] = missing1
-            self._devices["missing1"].async_update_callback(missing1)
+            self.update_sensor("missing1", missing1)
         return
 
     def get_tg_short(self, serial: string, password: string, cmd: int) -> bytes:
