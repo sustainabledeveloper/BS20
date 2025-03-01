@@ -20,7 +20,7 @@ type HubConfigEntry = ConfigEntry
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HubConfigEntry) -> bool:
-    entry.runtime_data = hub.Hub(hass, entry.data["host"], entry.data["serial"], entry.data["password"])
+    entry.runtime_data = hub.Hub(hass, entry.data["serial"], entry.data["password"])
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

@@ -23,9 +23,9 @@ class Hub:
     device_data = {}
     _online_timer = None
 
-    def __init__(self, hass: HomeAssistant, host: str, serial: str, password: str) -> None:
+    def __init__(self, hass: HomeAssistant, serial: str, password: str) -> None:
         self._hass = hass
-        self._host = host
+        self._host = None
         self._serial = serial
         self._password = password
         self.online = False
@@ -225,14 +225,15 @@ class Hub:
             command = data[19] * 256 + data[20]
             _LOGGER.error(data.hex())
             newData = data[21:len(data)-4]
-            await self.process_command(command, serial, newData)
+            await self.process_command(command, serial, newData, addr[0])
 
-    async def process_command(self, command: int, serial: string, data: bytes):
+    async def process_command(self, command: int, serial: string, data: bytes, host: str):
         await self._reset_online_timer()
         self.online = True
 
         if command == 1:
             await self.process_login(data)
+            self._host = host
             await self.login_request()
         elif command == 2:
             await self.process_login(data)
@@ -512,8 +513,9 @@ class Hub:
         return tg
 
     async def send_cmd(self, tg: bytes):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(tg, (self._host, self._port))
+        if self._host != None:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(tg, (self._host, self._port))
         return
     
     def convert_bad_timestamp(self, bad_timestamp: int, home_assistant_timezone: str) -> str:
