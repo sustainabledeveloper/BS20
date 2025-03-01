@@ -10,21 +10,21 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema({
-    vol.Required("host"): str,
+    #vol.Required("host"): str,
     vol.Required("serial"): str,
     vol.Required("password"): str
 })
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input."""
-    if len(data["host"]) < 3:
-        raise InvalidHost
+    #if len(data["host"]) < 3:
+    #    raise InvalidHost
     if len(str(data["serial"])) < 3:
         raise InvalidSerial
     if len(data["password"]) < 3:
         raise InvalidPassword
 
-    return {"title": data["host"]}
+    return {"title": data["serial"]}
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Besen BS20."""
@@ -41,8 +41,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=info["title"], data=user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
-            except InvalidHost:
-                errors["host"] = "invalid_host"
+            #except InvalidHost:
+            #    errors["host"] = "invalid_host"
             except InvalidSerial:
                 errors["serial"] = "invalid_serial"
             except InvalidPassword:
