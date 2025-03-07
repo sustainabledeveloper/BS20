@@ -11,8 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema({
     #vol.Required("host"): str,
-    vol.Required("serial"): str,
-    vol.Required("password"): str
+    vol.Required("2562529158861192"): str,
+    vol.Required("291494"): str
 })
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
