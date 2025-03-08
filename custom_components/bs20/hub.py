@@ -1,9 +1,11 @@
 
+import random
 import string
 import socket
 import logging
 import asyncio
 from datetime import datetime
+import time
 from zoneinfo import ZoneInfo
 
 from typing import Any
@@ -13,7 +15,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .sensor import Current, OtherSensor, Power, Temperature, Voltage, Work
 
-from .number import Electricity
+from .number import MaxCurrent
+from .switch import Lock
+from .button import StartCharging, StopCharging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,17 +34,41 @@ class Hub:
         self._password = password
         self.online = False
         self.udp_transport = None
+        self._current_userId = None
+        self._current_current = None
+        self._unlocked = False
 
     async def init_numbers(self, hass, async_add_entities: AddEntitiesCallback):
-        # TODO feature to set the Amper of charging
+        new_devices = []
+        instance = MaxCurrent(hass, self, "currentVoltageL1", "Current Voltage P1")
+        self._devices["currentVoltageL1"] = instance
+        self.device_data["currentVoltageL1"] = None
+        new_devices.append(instance)
 
-        # new_devices = []
-        # instance = Electricity(hass, self, "currentVoltageL1", "Current Voltage P1")
-        # self._devices["currentVoltageL1"] = instance
-        # self.device_data["currentVoltageL1"] = -1
-        # new_devices.append(instance)
+        async_add_entities(new_devices)
+        return
+    
+    async def init_switches(self, hass, async_add_entities: AddEntitiesCallback):
+        new_devices = []
+        instance = Lock(hass, self, "lock", "Lock")
+        self._devices["lock"] = instance
+        new_devices.append(instance)
 
-        # async_add_entities(new_devices)
+        async_add_entities(new_devices)
+        return
+    
+    async def init_buttons(self, hass, async_add_entities: AddEntitiesCallback):
+        new_devices = []
+        instance = StartCharging(hass, self, "startCharging", "Start Charging")
+        self._devices["startCharging"] = instance
+        new_devices.append(instance)
+
+        new_devices = []
+        instance = StopCharging(hass, self, "stopCharging", "Stop Charging")
+        self._devices["stopCharging"] = instance
+        new_devices.append(instance)
+
+        async_add_entities(new_devices)
         return
     
     def serial(self) -> str:
@@ -419,10 +447,10 @@ class Hub:
             reservationDate = self.convert_bad_timestamp(reservationDate, self._hass.config.time_zone)
         self.update_sensor("reservationDate", reservationDate)
 
-        userId = self.trim_bytes(data[30:46]).decode('ascii')
+        self._current_userId = self.trim_bytes(data[30:46]).decode('ascii')
 
-        maxElectricity = data[46]
-        self.update_sensor("maxElectricity", maxElectricity)
+        self._current_current = data[46]
+        self.update_sensor("maxElectricity", self._current_current)
 
         startDate = self.convert_bad_timestamp(self.int_from_bytes(data[47:51]), self._hass.config.time_zone)
         self.update_sensor("startDate", startDate)
@@ -534,3 +562,87 @@ class Hub:
         minutes = remainder // 60
         seconds = remainder % 60
         return f"{hours:02}:{minutes:02}:{seconds:02}"
+    
+    async def stop_charge(self):
+        if self._unlocked and self._current_userId != None:
+            data = bytearray(47)
+            data[0] = 1
+            ascii_bytes = self._current_userId.encode('ascii')
+            data[1:1 + len(ascii_bytes)] = ascii_bytes
+            for idx in range(len(ascii_bytes), 16):
+                data[idx] = 32
+            cmd = self.get_tg(self._serial, self._password, 32776, data)
+            await self.send_cmd(cmd)
+        return
+    
+    async def start_charge(self):
+        if self._unlocked:
+            chargeId = datetime.now().strftime("%Y%m%d%H%M") + ''.join(str(random.randint(0, 9)) for _ in range(4))
+            reservationDate = int(time.time() * 1000) // 1000
+            param1 = 65535
+            param2 = 65535
+            param3 = 65535
+
+            idx = 0
+            data = bytearray(47)
+            data[0] = 1
+            idx = idx + 1
+
+            ascii_bytes = self._current_userId.encode('ascii')
+            data[idx:idx + len(ascii_bytes)] = ascii_bytes
+            for i in range(len(ascii_bytes), 16):
+                data[i] = 32
+            idx = idx + 16
+            
+            ascii_bytes = chargeId.encode('ascii')
+            data[idx:idx + len(ascii_bytes)] = ascii_bytes
+            idx = idx + len(ascii_bytes)
+
+            data[idx] = 0
+            idx = idx + 1
+
+            data[idx] = (reservationDate >> 24) & 0xff
+            data[idx + 1] = (reservationDate >> 16) & 0xff
+            data[idx + 2] = (reservationDate >> 8) & 0xff
+            data[idx + 3] = reservationDate % 256
+            idx = idx + 4
+
+            data[idx] = 1
+            idx = idx + 1
+
+            data[idx] = 1
+            idx = idx + 1
+
+            data[idx] = (param1 >> 8) & 0xff
+            data[idx + 1] = param1 % 256
+            idx = idx + 2
+
+            data[idx] = (param2 >> 8) & 0xff
+            data[idx + 1] = param2 % 256
+            idx = idx + 2
+
+            data[idx] = (param3 >> 8) & 0xff
+            data[idx + 1] = param3 % 256
+            idx = idx + 2
+
+            data[idx] = self._current_current
+            idx = idx + 1
+
+            cmd = self.get_tg(self._serial, self._password, 32775, data)
+            await self.send_cmd(cmd)
+
+    async def set_max_current(self, current: int):
+        if self._unlocked:
+            if current < 1 or current > 32:
+                return
+            data = bytearray[2]
+            data[0] = 1
+            data[1] = current
+            cmd = self.get_tg(self._serial, self._password, 33031, data)
+            await self.send_cmd(cmd)
+
+    async def set_locked(self, locked: bool):
+        self._unlocked = not locked
+
+    async def is_locked(self) -> bool:
+        return not self._unlocked

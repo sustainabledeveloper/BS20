@@ -14,7 +14,7 @@ from . import hub
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
+PLATFORMS = [Platform.NUMBER, Platform.SENSOR, Platform.BUTTON, Platform.SWITCH]
 
 type HubConfigEntry = ConfigEntry
 
