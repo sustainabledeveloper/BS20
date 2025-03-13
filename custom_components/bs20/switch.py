@@ -1,7 +1,7 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.components.number import NumberEntity, NumberDeviceClass
+from homeassistant.components.switch import SwitchEntity
 from typing import cast
 
 async def async_setup_entry(
@@ -11,13 +11,13 @@ async def async_setup_entry(
 ) -> None:
     hub = config_entry.runtime_data
     try:
-        await hub.init_numbers(hass, async_add_entities)
+        await hub.init_switches(hass, async_add_entities)
     except (TimeoutError, ConnectionError) as ex:
         # Retry setup later
         raise ConfigEntryNotReady(f"Unable to connect to device: {ex}") 
     
 
-class MaxCurrent(NumberEntity):
+class Lock(SwitchEntity):
 
     def __init__(self, hass, hub, id, name):
         self._hass = hass
@@ -28,6 +28,16 @@ class MaxCurrent(NumberEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+    
+    async def async_turn_on(self, **kwargs):
+        await self._hub.set_unlocked(True)
+        self._attr_is_on = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs):
+        await self._hub.set_unlocked(False)
+        self._attr_is_on = False
+        self.async_write_ha_state()
 
     @property
     def unique_id(self):
@@ -36,11 +46,6 @@ class MaxCurrent(NumberEntity):
     @property
     def name(self):
         return self._name
-
-    @property
-    def native_value(self) -> float | None:
-        """Return the value of the entity."""
-        return cast(float | None, self._hub.device_data[self._id])
     
     @callback
     def async_update_callback(self, reason):
@@ -48,26 +53,11 @@ class MaxCurrent(NumberEntity):
     
     @property
     def available(self) -> bool:
-        return self._hub.available
+        return True
     
     @property
-    def native_max_value(self) -> float:
-        return 32
-    
-    @property
-    def native_min_value(self) -> float:
-        return 1
-    
-    @property
-    def native_step(self) -> float:
-        return 1
-    
-    @property
-    def native_unit_of_measurement(self) -> str:
-        return NumberDeviceClass.CURRENT
-    
-    async def async_set_native_value(self, value: float) -> None:
-        await self._hub.set_max_current(value)
+    def is_on(self) -> bool:
+        return self._hub.is_unlocked()
     
     @property
     def device_info(self):

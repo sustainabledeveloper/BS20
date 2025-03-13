@@ -31,6 +31,14 @@ class Voltage(SensorEntity):
         self._available = True
 
     @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
     def native_value(self) -> float | None:
         """Return the value of the entity."""
         return cast(float | None, self._hub.device_data[self._id])
@@ -51,6 +59,16 @@ class Voltage(SensorEntity):
     def available(self) -> bool:
         return self._hub.available
     
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
+    
 class Current(SensorEntity):
 
     def __init__(self, hass, hub, id, name):
@@ -62,6 +80,14 @@ class Current(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def native_value(self) -> float | None:
@@ -84,6 +110,16 @@ class Current(SensorEntity):
     def available(self) -> bool:
         return self._hub.available
     
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
+    
 class Power(SensorEntity):
 
     def __init__(self, hass, hub, id, name):
@@ -95,6 +131,14 @@ class Power(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def native_value(self) -> float | None:
@@ -117,6 +161,16 @@ class Power(SensorEntity):
     def available(self) -> bool:
         return self._hub.available
     
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
+    
 class Work(SensorEntity):
 
     def __init__(self, hass, hub, id, name):
@@ -128,6 +182,14 @@ class Work(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def native_value(self) -> float | None:
@@ -150,6 +212,16 @@ class Work(SensorEntity):
     def available(self) -> bool:
         return self._hub.available
     
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
+    
 class Temperature(SensorEntity):
 
     def __init__(self, hass, hub, id, name):
@@ -161,6 +233,14 @@ class Temperature(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def native_value(self) -> float | None:
@@ -183,6 +263,16 @@ class Temperature(SensorEntity):
     def available(self) -> bool:
         return self._hub.available
     
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
+    
 class OtherSensor(SensorEntity):
 
     def __init__(self, hass, hub, id, name):
@@ -196,6 +286,14 @@ class OtherSensor(SensorEntity):
         self._available = True
 
     @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
     def native_value(self) -> float | None:
         """Return the value of the entity."""
         return cast(float | None, self._hub.device_data[self._id])
@@ -207,3 +305,13 @@ class OtherSensor(SensorEntity):
     @property
     def available(self) -> bool:
         return self._hub.available
+    
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
