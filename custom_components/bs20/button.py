@@ -28,13 +28,31 @@ class StartCharging(ButtonEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
     
     @property
     def available(self) -> bool:
-        return self._hub.available
+        return True
     
     async def async_press(self) -> None:
-        self._hub.start_charge()
+        await self._hub.start_charge()
+    
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }
     
 class StopCharging(ButtonEntity):
 
@@ -47,10 +65,28 @@ class StopCharging(ButtonEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+
+    @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
     
     @property
     def available(self) -> bool:
-        return self._hub.available
+        return True
     
     async def async_press(self) -> None:
-        self._hub.stop_charge()
+        await self._hub.stop_charge()
+    
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }

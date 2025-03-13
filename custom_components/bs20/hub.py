@@ -40,9 +40,9 @@ class Hub:
 
     async def init_numbers(self, hass, async_add_entities: AddEntitiesCallback):
         new_devices = []
-        instance = MaxCurrent(hass, self, "currentVoltageL1", "Current Voltage P1")
-        self._devices["currentVoltageL1"] = instance
-        self.device_data["currentVoltageL1"] = None
+        instance = MaxCurrent(hass, self, "maxCurrent", "Max charging current")
+        self._devices["maxCurrent"] = instance
+        self.device_data["maxCurrent"] = None
         new_devices.append(instance)
 
         async_add_entities(new_devices)
@@ -50,7 +50,7 @@ class Hub:
     
     async def init_switches(self, hass, async_add_entities: AddEntitiesCallback):
         new_devices = []
-        instance = Lock(hass, self, "lock", "Lock")
+        instance = Lock(hass, self, "lock", "Unlock")
         self._devices["lock"] = instance
         new_devices.append(instance)
 
@@ -63,7 +63,6 @@ class Hub:
         self._devices["startCharging"] = instance
         new_devices.append(instance)
 
-        new_devices = []
         instance = StopCharging(hass, self, "stopCharging", "Stop Charging")
         self._devices["stopCharging"] = instance
         new_devices.append(instance)
@@ -251,7 +250,6 @@ class Hub:
         if len(data) >= calculatedLen and len(data) >= 25 and data[0] == 0x06 and data[1] == 0x01:
             serial = data[5:13].hex()
             command = data[19] * 256 + data[20]
-            _LOGGER.error(data.hex())
             newData = data[21:len(data)-4]
             await self.process_command(command, serial, newData, addr[0])
 
@@ -290,8 +288,6 @@ class Hub:
         output_power = int.from_bytes(data[49:53], byteorder='little')
         output_electricity = data[53]
         hotline = self.trim_bytes(data[54:70]).decode('ascii')
-
-        _LOGGER.warning(f"ProcessLogin brand:{brand} model:{model}")
 
         return
 
@@ -451,6 +447,7 @@ class Hub:
 
         self._current_current = data[46]
         self.update_sensor("maxElectricity", self._current_current)
+        self.update_sensor("maxCurrent", self._current_current)
 
         startDate = self.convert_bad_timestamp(self.int_from_bytes(data[47:51]), self._hass.config.time_zone)
         self.update_sensor("startDate", startDate)
@@ -635,14 +632,15 @@ class Hub:
         if self._unlocked:
             if current < 1 or current > 32:
                 return
-            data = bytearray[2]
+            data = bytearray(2)
             data[0] = 1
-            data[1] = current
+            data[1] = int(current)
             cmd = self.get_tg(self._serial, self._password, 33031, data)
             await self.send_cmd(cmd)
 
-    async def set_locked(self, locked: bool):
-        self._unlocked = not locked
+    async def set_unlocked(self, unlocked: bool):
+        self._unlocked = unlocked
+        self._devices["lock"].async_update_callback(self._unlocked)
 
-    async def is_locked(self) -> bool:
-        return not self._unlocked
+    def is_unlocked(self) -> bool:
+        return self._unlocked

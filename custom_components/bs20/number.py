@@ -30,6 +30,14 @@ class MaxCurrent(NumberEntity):
         self._available = True
 
     @property
+    def unique_id(self):
+        return f"{self._attr_unique_id}"
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
     def native_value(self) -> float | None:
         """Return the value of the entity."""
         return cast(float | None, self._hub.device_data[self._id])
@@ -60,3 +68,13 @@ class MaxCurrent(NumberEntity):
     
     async def async_set_native_value(self, value: float) -> None:
         await self._hub.set_max_current(value)
+    
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {("my_integration", self._hub.serial())},
+            "name": f"BS20 {self._hub.serial()}",
+            "manufacturer": "Besen",
+            "model": "BS20",
+            "sw_version": "1.0.2",
+        }

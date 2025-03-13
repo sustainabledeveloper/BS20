@@ -4,6 +4,9 @@ It's a quick and dirty integration for the BESEN BS20 wall EV charger.
 If you have any suggestions (for example unmapped vaules, or others) please
 feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues).
 
+Now you can Start/Stop charging, and chang the max current value (during charging as well).
+You need to switch on the Unlock switch to send these commands to the wallbox. If you want to prevent to send, turn it off. 
+
 [![BuyMeCoffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/schy)
 
 ## Device support
@@ -36,6 +39,7 @@ the integration will be available to install like any other.
 - You need to set the WIFI configuration in EVSEMaster app.
 - Make sure (after a restart of the app) EVSEMaster connects to the charger by WIFI.
 - Your Home Assistant installation have to be on the same network as the charger.
+- UDP port 28376 not be used by any other integration.
 
 IP address is automatically determined, so you don't need to know it.
 
@@ -44,6 +48,13 @@ You need the serial number of the device, which can be found in the EVSEMaster a
 And also you need the password, you already set in the EVSEMaster. If you not, the default password will be 123456.
 
 After adding the integration to Home Assistant, the enties should be appear with UNKNOWN values. After a few seconds they should be changed the values that the charger sent to the network.
+
+In a docker setup you need to configure the following (Thanks for the instruction to @b2un0):
+
+```yaml
+ports:
+- "28376:28376/udp"
+```
 
 ## Troubleshoot
 
