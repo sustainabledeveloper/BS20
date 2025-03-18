@@ -10,15 +10,12 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema({
-    #vol.Required("host"): str,
     vol.Required("serial"): str,
     vol.Required("password"): str
 })
 
 async def validate_input(hass: HomeAssistant, data: dict) -> dict[str, Any]:
     """Validate the user input."""
-    #if len(data["host"]) < 3:
-    #    raise InvalidHost
     if len(str(data["serial"])) < 3:
         raise InvalidSerial
     if len(data["password"]) < 3:

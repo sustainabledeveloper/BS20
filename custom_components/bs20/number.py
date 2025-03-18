@@ -24,6 +24,7 @@ class MaxCurrent(NumberEntity):
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -35,6 +36,10 @@ class MaxCurrent(NumberEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property

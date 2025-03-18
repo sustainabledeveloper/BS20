@@ -10,8 +10,10 @@ from zoneinfo import ZoneInfo
 
 from typing import Any
 
+from homeassistant.helpers import entity_registry as er
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.components.sensor import SensorStateClass
 
 from .sensor import Current, OtherSensor, Power, Temperature, Voltage, Work
 
@@ -44,8 +46,15 @@ class Hub:
         self._devices["maxCurrent"] = instance
         self.device_data["maxCurrent"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "number", "max_charging_current")
 
         async_add_entities(new_devices)
+        entity_registry = er.async_get(hass)
+        for entity in new_devices:
+            entity_registry.async_update_entity(
+                entity.entity_id,
+                name=entity.friendly_name,
+            )
         return
     
     async def init_switches(self, hass, async_add_entities: AddEntitiesCallback):
@@ -53,8 +62,15 @@ class Hub:
         instance = Lock(hass, self, "lock", "Unlock")
         self._devices["lock"] = instance
         new_devices.append(instance)
+        self.remove_sensor(hass, "switch", "unlock")
 
         async_add_entities(new_devices)
+        entity_registry = er.async_get(hass)
+        for entity in new_devices:
+            entity_registry.async_update_entity(
+                entity.entity_id,
+                name=entity.friendly_name,
+            )
         return
     
     async def init_buttons(self, hass, async_add_entities: AddEntitiesCallback):
@@ -62,139 +78,178 @@ class Hub:
         instance = StartCharging(hass, self, "startCharging", "Start Charging")
         self._devices["startCharging"] = instance
         new_devices.append(instance)
+        self.remove_sensor(hass, "button", "start_charging")
 
         instance = StopCharging(hass, self, "stopCharging", "Stop Charging")
         self._devices["stopCharging"] = instance
         new_devices.append(instance)
+        self.remove_sensor(hass, "button", "stop_charging")
 
         async_add_entities(new_devices)
+        entity_registry = er.async_get(hass)
+        for entity in new_devices:
+            entity_registry.async_update_entity(
+                entity.entity_id,
+                name=entity.friendly_name,
+            )
         return
     
     def serial(self) -> str:
         return self._serial
+    
+    def remove_sensor(self, hass, platform, name):
+        entity_reg = er.async_get(hass)
+        entry = entity_reg.async_get_entity_id("besen", platform, name)
+        if entry in entity_reg.entities:
+            entity_reg.async_remove(entry)
+            hass.states.async_remove(entry)
 
     async def init_sensors(self, hass, async_add_entities: AddEntitiesCallback):
         new_devices = []
-        instance = Voltage(hass, self, "currentVoltageL1", "Current Voltage L1")
+        instance = Voltage(hass, self, "currentVoltageL1", "Current Voltage L1", SensorStateClass.MEASUREMENT)
         self._devices["currentVoltageL1"] = instance
         self.device_data["currentVoltageL1"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_voltage_l1")
 
-        instance = Voltage(hass, self, "currentVoltageL2", "Current Voltage L2")
+        instance = Voltage(hass, self, "currentVoltageL2", "Current Voltage L2", SensorStateClass.MEASUREMENT)
         self._devices["currentVoltageL2"] = instance
         self.device_data["currentVoltageL2"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_voltage_l2")
 
-        instance = Voltage(hass, self, "currentVoltageL3", "Current Voltage L3")
+        instance = Voltage(hass, self, "currentVoltageL3", "Current Voltage L3", SensorStateClass.MEASUREMENT)
         self._devices["currentVoltageL3"] = instance
         self.device_data["currentVoltageL3"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_voltage_l3")
 
-        instance = Current(hass, self, "currentCurrentL1", "Current Current L1")
+        instance = Current(hass, self, "currentCurrentL1", "Current Current L1", SensorStateClass.MEASUREMENT)
         self._devices["currentCurrentL1"] = instance
         self.device_data["currentCurrentL1"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_current_l1")
 
-        instance = Current(hass, self, "currentCurrentL2", "Current Current L2")
+        instance = Current(hass, self, "currentCurrentL2", "Current Current L2", SensorStateClass.MEASUREMENT)
         self._devices["currentCurrentL2"] = instance
         self.device_data["currentCurrentL2"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_current_l2")
 
-        instance = Current(hass, self, "currentCurrentL3", "Current Current L3")
+        instance = Current(hass, self, "currentCurrentL3", "Current Current L3", SensorStateClass.MEASUREMENT)
         self._devices["currentCurrentL3"] = instance
         self.device_data["currentCurrentL3"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_current_l3")
 
-        instance = Power(hass, self, "currentPower", "Charging power")
+        instance = Power(hass, self, "currentPower", "Charging power", SensorStateClass.MEASUREMENT)
         self._devices["currentPower"] = instance
         self.device_data["currentPower"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_power")
 
-        instance = Work(hass, self, "currentAmount", "Cumulative Amount")
+        instance = Work(hass, self, "currentAmount", "Cumulative Amount", SensorStateClass.TOTAL_INCREASING)
         self._devices["currentAmount"] = instance
         self.device_data["currentAmount"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "cumulative_amount")
 
         instance = Temperature(hass, self, "innerTemperature", "Inner temperature")
         self._devices["innerTemperature"] = instance
         self.device_data["innerTemperature"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "inner_temperature")
 
         instance = Temperature(hass, self, "outerTemperature", "Outer temperature")
         self._devices["outerTemperature"] = instance
         self.device_data["outerTemperature"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "outer_temperature")
 
         instance = OtherSensor(hass, self, "buttonState", "Button state")
         self._devices["buttonState"] = instance
         self.device_data["buttonState"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "button_state")
 
         instance = OtherSensor(hass, self, "chargingState", "Charger plug state")
         self._devices["chargingState"] = instance
         self.device_data["chargingState"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charger_plug_state")
 
         instance = OtherSensor(hass, self, "outputState", "Output state")
         self._devices["outputState"] = instance
         self.device_data["outputState"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "output_state")
 
         instance = OtherSensor(hass, self, "currentState", "Current state")
         self._devices["currentState"] = instance
         self.device_data["currentState"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "current_state")
 
         #charge states
         instance = OtherSensor(hass, self, "chargedTime", "Charging time")
         self._devices["chargedTime"] = instance
         self.device_data["chargedTime"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_time")
 
-        instance = Work(hass, self, "chargePower", "Currently charged power")
+        instance = Work(hass, self, "chargePower", "Currently charged power", SensorStateClass.MEASUREMENT)
         self._devices["chargePower"] = instance
         self.device_data["chargePower"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "currently_charged_power")
 
         instance = OtherSensor(hass, self, "chargeType", "Charging type")
         self._devices["chargeType"] = instance
         self.device_data["chargeType"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_type")
 
         instance = OtherSensor(hass, self, "startType", "Starting type")
         self._devices["startType"] = instance
         self.device_data["startType"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "starting_type")
 
         instance = OtherSensor(hass, self, "reservationDate", "Scheduled date")
         self._devices["reservationDate"] = instance
         self.device_data["reservationDate"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "scheduled_date")
 
-        instance = Work(hass, self, "chargeStartPower", "Overall power at charge start")
+        instance = Work(hass, self, "chargeStartPower", "Overall power at charge start", SensorStateClass.TOTAL)
         self._devices["chargeStartPower"] = instance
         self.device_data["chargeStartPower"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "overall_power_at_charge_start")
 
-        instance = Current(hass, self, "maxElectricity", "Charging max current")
+        instance = Current(hass, self, "maxElectricity", "Charging max current", SensorStateClass.MEASUREMENT)
         self._devices["maxElectricity"] = instance
         self.device_data["maxElectricity"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_max_current")
 
         instance = OtherSensor(hass, self, "port", "Charging port")
         self._devices["port"] = instance
         self.device_data["port"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_port")
 
         instance = OtherSensor(hass, self, "chargeId", "Charging id")
         self._devices["chargeId"] = instance
         self.device_data["chargeId"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "charging_id")
 
-        instance = Work(hass, self, "chargeCurrentPower", "Overall charged power")
+        instance = Work(hass, self, "chargeCurrentPower", "Overall charged power", SensorStateClass.TOTAL_INCREASING)
         self._devices["chargeCurrentPower"] = instance
         self.device_data["chargeCurrentPower"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "overall_charged_power")
 
         # instance = OtherSensor(hass, self, "chargeCurrentState", "Charging current state")
         # self._devices["chargeCurrentState"] = instance
@@ -205,29 +260,40 @@ class Hub:
         self._devices["startDate"] = instance
         self.device_data["startDate"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "start_date")
 
         #missings
         instance = OtherSensor(hass, self, "missing1", "Unknown 1")
         self._devices["missing1"] = instance
         self.device_data["missing1"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "unknown_1")
 
         instance = OtherSensor(hass, self, "missing2", "Unknown 2")
         self._devices["missing2"] = instance
         self.device_data["missing2"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "unknown_2")
 
         instance = OtherSensor(hass, self, "missing3", "Unknown 3")
         self._devices["missing3"] = instance
         self.device_data["missing3"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "unknown_3")
 
         instance = OtherSensor(hass, self, "missing4", "Unknown 4")
         self._devices["missing4"] = instance
         self.device_data["missing4"] = None
         new_devices.append(instance)
+        self.remove_sensor(hass, "sensor", "unknown_4")
 
         async_add_entities(new_devices)
+        entity_registry = er.async_get(hass)
+        for entity in new_devices:
+            entity_registry.async_update_entity(
+                entity.entity_id,
+                name=entity.friendly_name,
+            )
 
     @property
     def available(self) -> bool:
