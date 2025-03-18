@@ -71,5 +71,9 @@ If data received when EVSEMaster app is running, but if not, datas are not chang
 - Added device serial prefix for entity ids (You need to readd the integration to change the ids.)
 
 ## 1.0.2
+- Added support to start/stop charging, and setting the charging power
+- Bug fixes
 
 ## 1.0.1
+- Improved sensor updates
+- Bug fixes
