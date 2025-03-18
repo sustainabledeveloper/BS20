@@ -20,11 +20,13 @@ async def async_setup_entry(
 
 class Voltage(SensorEntity):
 
-    def __init__(self, hass, hub, id, name):
+    def __init__(self, hass, hub, id, name, state_class):
         self._hass = hass
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
+        self._state_class = state_class
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -36,6 +38,10 @@ class Voltage(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property
@@ -46,6 +52,10 @@ class Voltage(SensorEntity):
     @property
     def device_class(self):
         return SensorDeviceClass.VOLTAGE
+    
+    @property
+    def state_class(self):
+        return self._state_class
     
     @property
     def native_unit_of_measurement(self):
@@ -71,11 +81,13 @@ class Voltage(SensorEntity):
     
 class Current(SensorEntity):
 
-    def __init__(self, hass, hub, id, name):
+    def __init__(self, hass, hub, id, name, state_class):
         self._hass = hass
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
+        self._state_class = state_class
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -87,6 +99,10 @@ class Current(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property
@@ -97,6 +113,10 @@ class Current(SensorEntity):
     @property
     def device_class(self):
         return SensorDeviceClass.CURRENT
+    
+    @property
+    def state_class(self):
+        return self._state_class
     
     @property
     def native_unit_of_measurement(self):
@@ -122,11 +142,13 @@ class Current(SensorEntity):
     
 class Power(SensorEntity):
 
-    def __init__(self, hass, hub, id, name):
+    def __init__(self, hass, hub, id, name, state_class):
         self._hass = hass
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
+        self._state_class = state_class
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -138,6 +160,10 @@ class Power(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property
@@ -148,6 +174,10 @@ class Power(SensorEntity):
     @property
     def device_class(self):
         return SensorDeviceClass.POWER
+    
+    @property
+    def state_class(self):
+        return self._state_class
     
     @property
     def native_unit_of_measurement(self):
@@ -173,11 +203,13 @@ class Power(SensorEntity):
     
 class Work(SensorEntity):
 
-    def __init__(self, hass, hub, id, name):
+    def __init__(self, hass, hub, id, name, state_class):
         self._hass = hass
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
+        self._state_class = state_class
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -189,6 +221,10 @@ class Work(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property
@@ -198,7 +234,11 @@ class Work(SensorEntity):
     
     @property
     def device_class(self):
-        return SensorDeviceClass.ENERGY_STORAGE
+        return SensorDeviceClass.ENERGY
+    
+    @property
+    def state_class(self):
+        return self._state_class
     
     @property
     def native_unit_of_measurement(self):
@@ -229,6 +269,7 @@ class Temperature(SensorEntity):
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -240,6 +281,10 @@ class Temperature(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property
@@ -280,6 +325,7 @@ class OtherSensor(SensorEntity):
         self._hub = hub
         self._id = id
         self._name = name
+        self._unique_name = f"BS20 {hub.serial()} {name}"
 
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
@@ -291,6 +337,10 @@ class OtherSensor(SensorEntity):
 
     @property
     def name(self):
+        return self._unique_name
+    
+    @property
+    def friendly_name(self):
         return self._name
 
     @property

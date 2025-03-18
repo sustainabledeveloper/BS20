@@ -63,3 +63,17 @@ If you have successfully add the integration and the device to Home Assistant, b
 
 If data received when EVSEMaster app is running, but if not, datas are not changing:
 - Change check if you typed the correct Serial number and password on the integration setup.
+
+
+#Change log
+## 1.0.3
+- Added support to add entities in HA's Energy monitor
+- Added device serial prefix for entity ids (You need to readd the integration to change the ids.)
+
+## 1.0.2
+- Added support to start/stop charging, and setting the charging power
+- Bug fixes
+
+## 1.0.1
+- Improved sensor updates
+- Bug fixes
