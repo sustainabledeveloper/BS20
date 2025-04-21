@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import SensorStateClass
 
-from .sensor import Current, OtherSensor, Power, Temperature, Voltage, Work
+from .sensor import Current, OtherSensor, Power, Temperature, Voltage, Work, WorkMeasurement
 
 from .number import MaxCurrent
 from .switch import Lock
@@ -71,6 +71,7 @@ class Hub:
                 entity.entity_id,
                 name=entity.friendly_name,
             )
+        await self.set_unlocked(True)
         return
     
     async def init_buttons(self, hass, async_add_entities: AddEntitiesCallback):
@@ -197,11 +198,12 @@ class Hub:
         new_devices.append(instance)
         self.remove_sensor(hass, "sensor", "charging_time")
 
-        instance = Work(hass, self, "chargePower", "Currently charged power", SensorStateClass.MEASUREMENT)
+        instance = Work(hass, self, "chargePower", "Currently charged amount", SensorStateClass.MEASUREMENT)
         self._devices["chargePower"] = instance
         self.device_data["chargePower"] = None
         new_devices.append(instance)
         self.remove_sensor(hass, "sensor", "currently_charged_power")
+        self.remove_sensor(hass, "sensor", "currently_charged_amount")
 
         instance = OtherSensor(hass, self, "chargeType", "Charging type")
         self._devices["chargeType"] = instance
@@ -373,7 +375,7 @@ class Hub:
         return
     
     def update_sensor(self, key: str, value):
-        if key not in self.device_data or value != self.device_data[key]:
+        if key in self._devices and (key not in self.device_data or value != self.device_data[key]):
             self.device_data[key] = value
             self._devices[key].async_update_callback(value)
 
@@ -412,10 +414,13 @@ class Hub:
         chargingState = data[18]
         if chargingState == 1:
             chargingState = "Not connected"
+            #self._devices["chargePower"].set_last_reset()
         elif chargingState == 2:
             chargingState = "Connected"
+            #self._devices["chargePower"].set_last_reset()
         elif chargingState == 4:
             chargingState = "Charging"
+            #self._devices["chargePower"].set_last_reset()
         self.update_sensor("chargingState", chargingState)
 
         outputState = data[19]
@@ -572,7 +577,7 @@ class Hub:
         return tg
 
     def get_tg(self, serial: string, password: string, cmd: int, data: bytes) -> bytes:
-        length = 25 + max(len(data), 16)
+        length = 25 + len(data)
         tg = bytearray(length)
 
         tg[0] = 0x06

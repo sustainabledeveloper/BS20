@@ -7,6 +7,11 @@ feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues
 Now you can Start/Stop charging, and chang the max current value (during charging as well).
 You need to switch on the Unlock switch to send these commands to the wallbox. If you want to prevent to send, turn it off. 
 
+## !!Note!!
+
+After restarting the integration, "Unlock" entity will be turned on by default, so you can send commands to the charger. 
+If you want, you can use it as a security lock to prevent sending commands accidentally by turning it of manually.
+
 [![BuyMeCoffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/schy)
 
 ## Device support
