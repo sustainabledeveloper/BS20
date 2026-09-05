@@ -4,6 +4,9 @@ from homeassistant.core import callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from homeassistant.components.switch import SwitchEntity
+from typing import cast
+from homeassistant.exceptions import ConfigEntryNotReady
 
 async def async_setup_entry(
         hass: HomeAssistant,

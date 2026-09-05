@@ -4,6 +4,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.sensor import SensorDeviceClass
 from typing import cast
+from homeassistant.exceptions import ConfigEntryNotReady
+import datetime 
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -214,6 +216,7 @@ class Work(SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"bs20_{hub.serial()}_{id}"
         self._available = True
+        self._last_reset = None
 
     @property
     def unique_id(self):
@@ -261,6 +264,13 @@ class Work(SensorEntity):
             "model": "BS20",
             "sw_version": "1.0.2",
         }
+    
+    def set_last_reset(self):
+        self._last_reset = datetime.datetime.now()
+
+    def last_reset(self):
+        return self._last_reset
+
     
 class Temperature(SensorEntity):
 

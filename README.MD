@@ -7,6 +7,11 @@ feel free to post an [issue](https://github.com/sustainabledeveloper/bs20/issues
 Now you can Start/Stop charging, and chang the max current value (during charging as well).
 You need to switch on the Unlock switch to send these commands to the wallbox. If you want to prevent to send, turn it off. 
 
+## !!Note!!
+
+After restarting the integration, "Unlock" entity will be turned on by default, so you can send commands to the charger. 
+If you want, you can use it as a security lock to prevent sending commands accidentally by turning it of manually.
+
 [![BuyMeCoffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/schy)
 
 ## Device support
@@ -65,15 +70,16 @@ If data received when EVSEMaster app is running, but if not, datas are not chang
 - Change check if you typed the correct Serial number and password on the integration setup.
 
 
-# Change log
-## 1.0.3
+
+## Change log
+### 1.0.3
 - Added support to add entities in HA's Energy monitor
 - Added device serial prefix for entity ids (You need to readd the integration to change the ids.)
 
-## 1.0.2
+### 1.0.2
 - Added support to start/stop charging, and setting the charging power
 - Bug fixes
 
-## 1.0.1
+### 1.0.1
 - Improved sensor updates
 - Bug fixes
