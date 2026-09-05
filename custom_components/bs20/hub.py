@@ -39,6 +39,7 @@ class Hub:
         self._current_userId = None
         self._current_current = None
         self._unlocked = False
+        self._unloaded = False
 
     async def init_numbers(self, hass, async_add_entities: AddEntitiesCallback):
         new_devices = []
@@ -314,7 +315,16 @@ class Hub:
         await asyncio.sleep(60)  # Wait for 60 seconds
         self.online = False
 
+    async def close(self):
+        """Signal that the hub is being unloaded."""
+        self._unloaded = True
+        if self._online_timer:
+            self._online_timer.cancel()
+        self._devices = {}
+
     async def decode_data(self, data: bytes, addr: tuple) -> None:
+        if self._unloaded:
+            return
         self._port = addr[1]
         
         calculatedLen = data[2] << 8 + data[3] & 0xff
