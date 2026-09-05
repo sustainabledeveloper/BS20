@@ -18,7 +18,7 @@ from homeassistant.components.sensor import SensorStateClass
 from .sensor import Current, OtherSensor, Power, Temperature, Voltage, Work
 
 from .number import MaxCurrent
-from .switch import Lock
+from .switch import Lock, Button
 from .button import StartCharging, StopCharging
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,6 +63,11 @@ class Hub:
         self._devices["lock"] = instance
         new_devices.append(instance)
         self.remove_sensor(hass, "switch", "unlock")
+
+        instance = Button(hass, self, "button", "Button")
+        self._devices["button"] = instance
+        new_devices.append(instance)
+        self.remove_sensor(hass, "switch", "button")
 
         async_add_entities(new_devices)
         entity_registry = er.async_get(hass)
@@ -330,12 +335,15 @@ class Hub:
         elif command == 2:
             await self.process_login(data)
             await self.login_response_response()
+            await self.send_charger_status_request()
         elif command == 3:
             await self.keep_alive_response()
         elif command == 4 or command == 13:
             await self.process_single_ac_status(data)
         elif command == 5 or command == 6:
             await self.process_charging_status(data)
+        elif command == 269:
+            await self.process_charger_toggle_action(data)
 
     def trim_bytes(self, data: bytes) -> bytes:
         return data.rstrip(b'\x00')
@@ -366,6 +374,11 @@ class Hub:
         cmd = self.get_tg(self._serial, self._password, 0x8001, [1])
         await self.send_cmd(cmd)
         return
+
+    async def send_charger_status_request(self):
+        data = bytearray([0x02, 0x00])  # refresh request
+        cmd = self.get_tg(self._serial, self._password, 33037, data)
+        await self.send_cmd(cmd)
 
     async def keep_alive_response(self):
         cmd = self.get_tg(self._serial, self._password, 32771, [])
@@ -542,6 +555,25 @@ class Hub:
             self.update_sensor("missing1", missing1)
         return
 
+    async def process_charger_toggle_action(self, data: bytes):
+        if len(data) < 2:
+            _LOGGER.warning(f"[BS20] Invalid toggle packet: {data.hex()}")
+            return
+
+        packet_type = data[0]  # 02 = refresh, 01 = toggle response
+        state_byte = data[1]  # 00 = ON, 01 = OFF
+
+        if state_byte not in (0, 1):
+            _LOGGER.warning(f"[BS20] Unknown state byte: {state_byte}")
+            return
+
+        action = state_byte
+
+        _LOGGER.info(f"[BS20] Charger state update: type={packet_type}, state={state_byte} "
+              f"({'ON' if action == 0 else 'OFF'})")
+
+        self.update_sensor("button", action)
+
     def get_tg_short(self, serial: string, password: string, cmd: int) -> bytes:
         length = 25
         tg = bytearray(length)
@@ -703,6 +735,14 @@ class Hub:
             data[1] = int(current)
             cmd = self.get_tg(self._serial, self._password, 33031, data)
             await self.send_cmd(cmd)
+
+    async def enable_button(self, action: int):
+        data = bytearray(2)
+        data[0] = 1
+        data[1] = action
+
+        cmd = self.get_tg(self._serial, self._password, 33037, data)
+        await self.send_cmd(cmd)
 
     async def set_unlocked(self, unlocked: bool):
         self._unlocked = unlocked
