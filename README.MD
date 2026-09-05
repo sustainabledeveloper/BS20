@@ -70,6 +70,7 @@ If data received when EVSEMaster app is running, but if not, datas are not chang
 - Change check if you typed the correct Serial number and password on the integration setup.
 
 
+
 ## Change log
 ### 1.0.3
 - Added support to add entities in HA's Energy monitor

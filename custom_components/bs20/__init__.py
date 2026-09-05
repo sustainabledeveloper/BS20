@@ -49,15 +49,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: HubConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a device entry."""
     # Remove the entry from the global dictionary
+    # Get the hub instance and call close on it
     if entry.entry_id in global_udp_entries:
+        hub_instance = global_udp_entries[entry.entry_id].runtime_data
+        await hub_instance.close()
         del global_udp_entries[entry.entry_id]
+
+    # Unload platforms before stopping the server
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     # Stop the UDP server if no devices are left
     if not global_udp_entries:
         await stop_udp_server()
-
-    # Unload platforms
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     return unload_ok
 

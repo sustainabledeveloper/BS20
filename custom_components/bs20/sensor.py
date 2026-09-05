@@ -360,8 +360,9 @@ class OtherSensor(SensorEntity):
     
     @callback
     def async_update_callback(self, reason):
-        self.async_schedule_update_ha_state()
-    
+        if self.hass is not None:
+            self.async_schedule_update_ha_state()
+
     @property
     def available(self) -> bool:
         return self._hub.available
