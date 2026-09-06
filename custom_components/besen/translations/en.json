@@ -1,0 +1,299 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a Besen charger",
+        "description": "The serial number is shown in the EVSEMaster app. The password is the charger password, 123456 unless you changed it.",
+        "data": {
+          "serial": "Serial number",
+          "password": "Charger password"
+        },
+        "data_description": {
+          "serial": "16 hexadecimal digits.",
+          "password": "Exactly 6 characters."
+        }
+      },
+      "reconfigure": {
+        "title": "Change charger settings",
+        "data": {
+          "serial": "Serial number",
+          "password": "Charger password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Charger password",
+        "description": "The charger rejected the stored password. Enter the current one.",
+        "data": {
+          "password": "Charger password"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Besen charger found over Bluetooth",
+        "description": "{name} is advertising nearby. Its serial number ends in {suffix}; enter the whole one, and the charger password.",
+        "data": {
+          "serial": "Serial number",
+          "password": "Charger password"
+        }
+      }
+    },
+    "error": {
+      "invalid_serial": "The serial number must be 16 hexadecimal digits.",
+      "invalid_password": "The charger password must be exactly 6 characters.",
+      "serial_mismatch": "That serial number does not end in the digits this charger advertises."
+    },
+    "abort": {
+      "already_configured": "This charger is already set up.",
+      "wrong_charger": "That serial number belongs to a different charger.",
+      "reauth_successful": "Password updated.",
+      "reconfigure_successful": "Settings updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Besen options",
+        "data": {
+          "ack_charge_records": "Acknowledge uploaded charging records",
+          "sync_clock": "Keep the charger's clock in sync",
+          "enable_bluetooth": "Reach the charger over Bluetooth when Wi-Fi is down",
+          "wifi_ssid": "Wi-Fi network name",
+          "wifi_password": "Wi-Fi password",
+          "wifi_auto_reprovision": "Re-send Wi-Fi settings automatically",
+          "ble_address": "Bluetooth address"
+        },
+        "data_description": {
+          "ack_charge_records": "The charger rebroadcasts each completed session until an app confirms it. Enabling this stops the repeats, but the record may then be dropped before the EVSEMaster app has seen it.",
+          "sync_clock": "The charger's clock free-runs and every timestamp it reports depends on it. Home Assistant writes the correct time whenever the charger comes online, which is what the EVSEMaster app does too.",
+          "enable_bluetooth": "Some units fail to rejoin Wi-Fi after a power cut. With this on, Home Assistant falls back to Bluetooth once the charger has been silent for two minutes, and releases the link as soon as it is back on the network. Needs a Bluetooth adapter or proxy within range of the charger.",
+          "wifi_ssid": "The network the charger should join. Needed only for the repair below.",
+          "wifi_password": "Stored with the config entry and redacted from diagnostics. It is written to the charger over Bluetooth, never sent anywhere else.",
+          "wifi_auto_reprovision": "When the charger has dropped off the network and Home Assistant reaches it over Bluetooth, write the credentials again -- the repair the phone app performs by hand after a power cut. Runs once per outage.",
+          "ble_address": "Leave empty to match by the advertised name. Set it when several chargers share the same last four characters, or when the name is not recognised — the log lists the addresses it can see."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "voltage_l1": {
+        "name": "Voltage L1"
+      },
+      "voltage_l2": {
+        "name": "Voltage L2"
+      },
+      "voltage_l3": {
+        "name": "Voltage L3"
+      },
+      "current_l1": {
+        "name": "Current L1"
+      },
+      "current_l2": {
+        "name": "Current L2"
+      },
+      "current_l3": {
+        "name": "Current L3"
+      },
+      "power": {
+        "name": "Power"
+      },
+      "energy_total": {
+        "name": "Total energy"
+      },
+      "temperature_inner": {
+        "name": "Internal temperature"
+      },
+      "temperature_outer": {
+        "name": "External temperature"
+      },
+      "state": {
+        "name": "Status",
+        "state": {
+          "charging": "Charging",
+          "fault": "Fault",
+          "finished_unplug": "Finished, unplug the cable",
+          "fully_charged": "Fully charged",
+          "plug_not_connected": "Plug not connected",
+          "ready_to_start": "Connected, ready to start",
+          "scheduled": "Scheduled",
+          "stopped_by_ev": "Stopped by the vehicle",
+          "unknown": "Unknown",
+          "waiting_for_button": "Waiting for the button",
+          "waiting_for_card": "Waiting for an RFID card",
+          "waiting_for_ev": "Waiting for the vehicle"
+        }
+      },
+      "plug_state": {
+        "name": "Plug state",
+        "state": {
+          "not_connected": "Not connected",
+          "connected": "Connected",
+          "charging": "Charging",
+          "unknown": "Unknown"
+        }
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "session_duration": {
+        "name": "Session duration"
+      },
+      "session_start": {
+        "name": "Session start"
+      },
+      "session_max_current": {
+        "name": "Session current limit"
+      },
+      "session_user": {
+        "name": "Session user"
+      },
+      "session_id": {
+        "name": "Session ID"
+      },
+      "session_cost": {
+        "name": "Session cost"
+      },
+      "last_record_energy": {
+        "name": "Last record energy"
+      },
+      "last_record_end": {
+        "name": "Last record end"
+      },
+      "last_record_duration": {
+        "name": "Last record duration"
+      },
+      "last_record_stop_reason": {
+        "name": "Last record stop reason"
+      },
+      "energy_at_session_start": {
+        "name": "Meter at session start"
+      },
+      "energy_total_at_session": {
+        "name": "Meter during session"
+      },
+      "reservation_time": {
+        "name": "Reservation time"
+      },
+      "rated_current": {
+        "name": "Rated current"
+      },
+      "start_type_raw": {
+        "name": "Start type (raw)"
+      },
+      "charge_type_raw": {
+        "name": "Charge type (raw)"
+      },
+      "state_code": {
+        "name": "Status code (raw)"
+      },
+      "unknown_tail_ac": {
+        "name": "Undecoded AC payload tail"
+      },
+      "unknown_tail_session": {
+        "name": "Undecoded session payload tail"
+      },
+      "charger_clock": {
+        "name": "Charger clock"
+      },
+      "clock_drift": {
+        "name": "Clock drift"
+      },
+      "phase_count": {
+        "name": "Phases"
+      },
+      "rated_power": {
+        "name": "Rated power"
+      },
+      "output_state_raw": {
+        "name": "Output state (raw)"
+      },
+      "monitoring_raw": {
+        "name": "Monitoring payload (raw)"
+      },
+      "connection": {
+        "name": "Connection",
+        "state": {
+          "wifi": "Wi-Fi",
+          "bluetooth": "Bluetooth",
+          "none": "Unreachable"
+        }
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi network"
+      },
+      "port": {
+        "name": "Charging port"
+      },
+      "emergency_stop_raw": {
+        "name": "Emergency stop (raw)"
+      },
+      "power_reported": {
+        "name": "Power (single phase, as reported)"
+      }
+    },
+    "binary_sensor": {
+      "plugged_in": {
+        "name": "Plugged in"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "emergency_stop": {
+        "name": "Emergency stop"
+      },
+      "charging_active": {
+        "name": "Charging"
+      },
+      "weekly_plan_active": {
+        "name": "Weekly plan active"
+      }
+    },
+    "number": {
+      "charging_current": {
+        "name": "Charging current"
+      },
+      "limit_duration": {
+        "name": "Session duration limit"
+      },
+      "limit_energy": {
+        "name": "Session energy limit"
+      },
+      "limit_cost": {
+        "name": "Session cost limit"
+      }
+    },
+    "switch": {
+      "charging": {
+        "name": "Charging"
+      },
+      "button_start": {
+        "name": "Start from charger button"
+      },
+      "unlocked": {
+        "name": "Commands unlocked"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Start charging"
+      },
+      "stop_charging": {
+        "name": "Stop charging"
+      },
+      "sync_clock": {
+        "name": "Sync clock"
+      },
+      "reprovision_wifi": {
+        "name": "Re-send Wi-Fi settings"
+      }
+    },
+    "select": {
+      "temperature_unit": {
+        "name": "Display temperature unit",
+        "state": {
+          "celsius": "Celsius",
+          "fahrenheit": "Fahrenheit"
+        }
+      }
+    }
+  }
+}

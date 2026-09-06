@@ -1,0 +1,140 @@
+{
+  "entity": {
+    "sensor": {
+      "state": {
+        "default": "mdi:ev-station"
+      },
+      "plug_state": {
+        "default": "mdi:ev-plug-type2"
+      },
+      "session_energy": {
+        "default": "mdi:lightning-bolt"
+      },
+      "session_duration": {
+        "default": "mdi:timer-outline"
+      },
+      "session_user": {
+        "default": "mdi:account"
+      },
+      "session_id": {
+        "default": "mdi:identifier"
+      },
+      "session_cost": {
+        "default": "mdi:cash"
+      },
+      "rated_current": {
+        "default": "mdi:current-ac"
+      },
+      "last_record_energy": {
+        "default": "mdi:history"
+      },
+      "last_record_end": {
+        "default": "mdi:history"
+      },
+      "last_record_duration": {
+        "default": "mdi:history"
+      },
+      "last_record_stop_reason": {
+        "default": "mdi:history"
+      },
+      "start_type_raw": {
+        "default": "mdi:play-circle-outline"
+      },
+      "charge_type_raw": {
+        "default": "mdi:tune"
+      },
+      "state_code": {
+        "default": "mdi:numeric"
+      },
+      "unknown_tail_ac": {
+        "default": "mdi:help-rhombus-outline"
+      },
+      "unknown_tail_session": {
+        "default": "mdi:help-rhombus-outline"
+      },
+      "charger_clock": {
+        "default": "mdi:clock-outline"
+      },
+      "clock_drift": {
+        "default": "mdi:clock-alert-outline"
+      },
+      "phase_count": {
+        "default": "mdi:sine-wave"
+      },
+      "rated_power": {
+        "default": "mdi:flash"
+      },
+      "output_state_raw": {
+        "default": "mdi:electric-switch"
+      },
+      "monitoring_raw": {
+        "default": "mdi:help-rhombus-outline"
+      },
+      "connection": {
+        "default": "mdi:lan-connect"
+      },
+      "wifi_ssid": {
+        "default": "mdi:wifi"
+      },
+      "port": {
+        "default": "mdi:ev-plug-type2"
+      },
+      "emergency_stop_raw": {
+        "default": "mdi:hand-back-right-off-outline"
+      },
+      "power_reported": {
+        "default": "mdi:flash-outline"
+      }
+    },
+    "number": {
+      "charging_current": {
+        "default": "mdi:current-ac"
+      },
+      "limit_duration": {
+        "default": "mdi:timer-cog-outline"
+      },
+      "limit_energy": {
+        "default": "mdi:lightning-bolt-outline"
+      },
+      "limit_cost": {
+        "default": "mdi:cash-lock"
+      }
+    },
+    "switch": {
+      "charging": {
+        "default": "mdi:ev-station",
+        "state": {
+          "off": "mdi:ev-station"
+        }
+      },
+      "button_start": {
+        "default": "mdi:gesture-tap-button"
+      },
+      "unlocked": {
+        "default": "mdi:lock-open-variant",
+        "state": {
+          "off": "mdi:lock"
+        }
+      }
+    },
+    "button": {
+      "start_charging": {
+        "default": "mdi:play"
+      },
+      "stop_charging": {
+        "default": "mdi:stop"
+      },
+      "sync_clock": {
+        "default": "mdi:clock-check-outline"
+      },
+      "reprovision_wifi": {
+        "default": "mdi:wifi-sync"
+      }
+    },
+    "select": {
+      "temperature_unit": {
+        "default": "mdi:thermometer"
+      }
+    }
+  }
+}

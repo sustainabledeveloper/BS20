@@ -1,5 +1,6 @@
 {
-    "name": "Besen",
-    "homeassistant": "2025.1.0",
-    "hacs": "2.0.0"
+    "name": "Besen EV Charger",
+    "homeassistant": "2025.2.0",
+    "hacs": "2.0.0",
+    "render_readme": true
 }

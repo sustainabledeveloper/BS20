@@ -1,0 +1,28 @@
+{
+  "domain": "besen",
+  "name": "Besen EV Charger",
+  "after_dependencies": [
+    "bluetooth_adapters"
+  ],
+  "bluetooth": [
+    {
+      "local_name": "ACP#EVSE*"
+    }
+  ],
+  "codeowners": [
+    "@sustainabledeveloper"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/sustainabledeveloper/BS20",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/sustainabledeveloper/BS20/issues",
+  "loggers": [
+    "custom_components.besen"
+  ],
+  "requirements": [
+    "bleak-retry-connector>=3.5.0"
+  ],
+  "version": "2.0.0"
+}

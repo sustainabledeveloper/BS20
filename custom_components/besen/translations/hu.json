@@ -1,0 +1,299 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Besen töltő hozzáadása",
+        "description": "A sorozatszám az EVSEMaster appban látható. A jelszó a töltő jelszava, alapértelmezetten 123456.",
+        "data": {
+          "serial": "Sorozatszám",
+          "password": "Töltő jelszava"
+        },
+        "data_description": {
+          "serial": "16 hexadecimális számjegy.",
+          "password": "Pontosan 6 karakter."
+        }
+      },
+      "reconfigure": {
+        "title": "Töltő beállításainak módosítása",
+        "data": {
+          "serial": "Sorozatszám",
+          "password": "Töltő jelszava"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Töltő jelszava",
+        "description": "A töltő elutasította a tárolt jelszót. Add meg az aktuálisat.",
+        "data": {
+          "password": "Töltő jelszava"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Besen töltő található Bluetooth-on",
+        "description": "A(z) {name} a közelben hirdet. A sorozatszáma {suffix}-re végződik; add meg a teljeset és a töltő jelszavát.",
+        "data": {
+          "serial": "Sorozatszám",
+          "password": "Töltő jelszava"
+        }
+      }
+    },
+    "error": {
+      "invalid_serial": "A sorozatszámnak 16 hexadecimális számjegyből kell állnia.",
+      "invalid_password": "A töltő jelszava pontosan 6 karakter hosszú.",
+      "serial_mismatch": "Ez a sorozatszám nem arra végződik, amit a töltő hirdet."
+    },
+    "abort": {
+      "already_configured": "Ez a töltő már be van állítva.",
+      "wrong_charger": "Ez a sorozatszám másik töltőhöz tartozik.",
+      "reauth_successful": "Jelszó frissítve.",
+      "reconfigure_successful": "Beállítások frissítve."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Besen beállítások",
+        "data": {
+          "ack_charge_records": "Feltöltött töltési rekordok nyugtázása",
+          "sync_clock": "A töltő órájának szinkronban tartása",
+          "enable_bluetooth": "Bluetooth-kapcsolat, ha a Wi-Fi nem elérhető",
+          "wifi_ssid": "Wi-Fi hálózat neve",
+          "wifi_password": "Wi-Fi jelszó",
+          "wifi_auto_reprovision": "Wi-Fi beállítás automatikus újraküldése",
+          "ble_address": "Bluetooth-cím"
+        },
+        "data_description": {
+          "ack_charge_records": "A töltő minden befejezett munkamenetet addig ismételget, amíg egy alkalmazás vissza nem igazolja. Bekapcsolva megszűnik az ismétlés, de a rekord elveszhet, mielőtt az EVSEMaster app látta volna.",
+          "sync_clock": "A töltő órája szabadon csúszik, és minden általa jelentett időbélyeg ettől függ. A Home Assistant a helyes időt írja be, valahányszor a töltő elérhetővé válik — ugyanezt teszi az EVSEMaster app is.",
+          "enable_bluetooth": "Egyes példányok áramszünet után nem tudnak visszacsatlakozni a Wi-Fi-re. Bekapcsolva a Home Assistant két perc némaság után Bluetooth-ra vált, és amint a töltő újra a hálózaton van, elengedi a kapcsolatot. Bluetooth-adaptert vagy -proxyt igényel a töltő hatótávolságában.",
+          "wifi_ssid": "Az a hálózat, amelyre a töltőnek csatlakoznia kell. Csak az alábbi javításhoz kell.",
+          "wifi_password": "A konfigurációs bejegyzésben tárolódik, és a diagnosztikából ki van maszkolva. Csak a töltőre íródik ki Bluetooth-on, máshová nem kerül.",
+          "wifi_auto_reprovision": "Ha a töltő lekerült a hálózatról, és a Home Assistant Bluetooth-on éri el, újraírja a hozzáférési adatokat — ugyanaz a javítás, amit áramszünet után kézzel végzel az appból. Kimaradásonként egyszer fut le.",
+          "ble_address": "Hagyd üresen, ha a hirdetett név alapján történjen az azonosítás. Akkor add meg, ha több töltőd utolsó négy karaktere egyezik, vagy ha a nevet nem ismeri fel — a napló kiírja a látott címeket."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "voltage_l1": {
+        "name": "Feszültség L1"
+      },
+      "voltage_l2": {
+        "name": "Feszültség L2"
+      },
+      "voltage_l3": {
+        "name": "Feszültség L3"
+      },
+      "current_l1": {
+        "name": "Áram L1"
+      },
+      "current_l2": {
+        "name": "Áram L2"
+      },
+      "current_l3": {
+        "name": "Áram L3"
+      },
+      "power": {
+        "name": "Teljesítmény"
+      },
+      "energy_total": {
+        "name": "Összes energia"
+      },
+      "temperature_inner": {
+        "name": "Belső hőmérséklet"
+      },
+      "temperature_outer": {
+        "name": "Külső hőmérséklet"
+      },
+      "state": {
+        "name": "Állapot",
+        "state": {
+          "charging": "Tölt",
+          "fault": "Hiba",
+          "finished_unplug": "Kész, húzd ki a kábelt",
+          "fully_charged": "Teljesen feltöltve",
+          "plug_not_connected": "Nincs bedugva",
+          "ready_to_start": "Csatlakoztatva, indításra kész",
+          "scheduled": "Ütemezve",
+          "stopped_by_ev": "Az autó állította le",
+          "unknown": "Ismeretlen",
+          "waiting_for_button": "Gombnyomásra vár",
+          "waiting_for_card": "RFID-kártyára vár",
+          "waiting_for_ev": "Az autóra vár"
+        }
+      },
+      "plug_state": {
+        "name": "Dugó állapota",
+        "state": {
+          "not_connected": "Nincs csatlakoztatva",
+          "connected": "Csatlakoztatva",
+          "charging": "Tölt",
+          "unknown": "Ismeretlen"
+        }
+      },
+      "session_energy": {
+        "name": "Munkamenet energiája"
+      },
+      "session_duration": {
+        "name": "Munkamenet hossza"
+      },
+      "session_start": {
+        "name": "Munkamenet kezdete"
+      },
+      "session_max_current": {
+        "name": "Munkamenet áramkorlátja"
+      },
+      "session_user": {
+        "name": "Munkamenet felhasználója"
+      },
+      "session_id": {
+        "name": "Munkamenet-azonosító"
+      },
+      "session_cost": {
+        "name": "Munkamenet díja"
+      },
+      "last_record_energy": {
+        "name": "Utolsó rekord energiája"
+      },
+      "last_record_end": {
+        "name": "Utolsó rekord vége"
+      },
+      "last_record_duration": {
+        "name": "Utolsó rekord hossza"
+      },
+      "last_record_stop_reason": {
+        "name": "Utolsó rekord leállási oka"
+      },
+      "energy_at_session_start": {
+        "name": "Mérőállás a munkamenet elején"
+      },
+      "energy_total_at_session": {
+        "name": "Mérőállás a munkamenet alatt"
+      },
+      "reservation_time": {
+        "name": "Foglalás időpontja"
+      },
+      "rated_current": {
+        "name": "Névleges áram"
+      },
+      "start_type_raw": {
+        "name": "Indítás típusa (nyers)"
+      },
+      "charge_type_raw": {
+        "name": "Töltés típusa (nyers)"
+      },
+      "state_code": {
+        "name": "Állapotkód (nyers)"
+      },
+      "unknown_tail_ac": {
+        "name": "Dekódolatlan AC payload-vég"
+      },
+      "unknown_tail_session": {
+        "name": "Dekódolatlan munkamenet payload-vég"
+      },
+      "charger_clock": {
+        "name": "Töltő órája"
+      },
+      "clock_drift": {
+        "name": "Óra eltérése"
+      },
+      "phase_count": {
+        "name": "Fázisok száma"
+      },
+      "rated_power": {
+        "name": "Névleges teljesítmény"
+      },
+      "output_state_raw": {
+        "name": "Kimenet állapota (nyers)"
+      },
+      "monitoring_raw": {
+        "name": "Monitoring payload (nyers)"
+      },
+      "connection": {
+        "name": "Kapcsolat",
+        "state": {
+          "wifi": "Wi-Fi",
+          "bluetooth": "Bluetooth",
+          "none": "Nem elérhető"
+        }
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi hálózat"
+      },
+      "port": {
+        "name": "Töltőport"
+      },
+      "emergency_stop_raw": {
+        "name": "Vészleállítás (nyers)"
+      },
+      "power_reported": {
+        "name": "Teljesítmény (egy fázis, jelentett)"
+      }
+    },
+    "binary_sensor": {
+      "plugged_in": {
+        "name": "Bedugva"
+      },
+      "problem": {
+        "name": "Hiba"
+      },
+      "emergency_stop": {
+        "name": "Vészleállítás"
+      },
+      "charging_active": {
+        "name": "Tölt"
+      },
+      "weekly_plan_active": {
+        "name": "Heti terv aktív"
+      }
+    },
+    "number": {
+      "charging_current": {
+        "name": "Töltőáram"
+      },
+      "limit_duration": {
+        "name": "Munkamenet időkorlátja"
+      },
+      "limit_energy": {
+        "name": "Munkamenet energiakorlátja"
+      },
+      "limit_cost": {
+        "name": "Munkamenet költségkorlátja"
+      }
+    },
+    "switch": {
+      "charging": {
+        "name": "Töltés"
+      },
+      "button_start": {
+        "name": "Indítás a töltő gombjával"
+      },
+      "unlocked": {
+        "name": "Parancsok engedélyezve"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Töltés indítása"
+      },
+      "stop_charging": {
+        "name": "Töltés leállítása"
+      },
+      "sync_clock": {
+        "name": "Óra szinkronizálása"
+      },
+      "reprovision_wifi": {
+        "name": "Wi-Fi beállítás újraküldése"
+      }
+    },
+    "select": {
+      "temperature_unit": {
+        "name": "Kijelző hőmérséklet-egysége",
+        "state": {
+          "celsius": "Celsius",
+          "fahrenheit": "Fahrenheit"
+        }
+      }
+    }
+  }
+}
