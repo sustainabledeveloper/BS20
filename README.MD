@@ -108,8 +108,10 @@ need to remove and re-add anything. On first start the entry is migrated:
 * Labels that 1.x wrote into the entity registry are cleared so the translated
   names apply. A name you set yourself is left alone.
 * Entities with no replacement (`Unknown 1`–`Unknown 4`) are removed.
-* The device registry entry is re-keyed from a placeholder identifier to the
-  integration domain.
+* The device registry entry is re-keyed from the placeholder identifier 1.x
+  used. Where an upgrade left two device entries for one charger, they are
+  merged into the one you have named and filed, and the entities that had
+  drifted onto the other one are moved back.
 
 Two things do change behaviour:
 
@@ -287,6 +289,10 @@ folder name and the integration domain now match.
 **Bluetooth connects but no data arrives.** Download diagnostics and open an
 issue with it attached; it records enough about the link to tell where it
 stopped.
+
+**One entity still shows the old device name.** Its registry entry sat on a
+second device entry left over from the upgrade, so it took that device's name
+instead of the one you set. Fixed: the merge runs once at the next start.
 
 **An entity was renamed by the upgrade.** A pre-release of 2.0.0 could move an
 entity that 1.x had labelled differently in an earlier release onto the current

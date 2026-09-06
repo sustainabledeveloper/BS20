@@ -223,7 +223,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     in favour of the id already in use, and re-keys the device entry. Runs for
     any entry below the current version.
     """
-    if entry.version >= 4:
+    if entry.version >= 5:
         return True
 
     _LOGGER.info(
@@ -247,7 +247,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry,
         data={**entry.data, "serial": serial},
         unique_id=serial,
-        version=4,
+        version=5,
     )
     return True
 
@@ -375,10 +375,38 @@ def _async_restore_entity_id(
 def _async_migrate_device(
     hass: HomeAssistant, entry: ConfigEntry, serial: str
 ) -> None:
-    """Re-key the device entry from the placeholder identifier 1.x used."""
+    """Leave one device entry holding every entity of this charger.
+
+    1.x keyed its device on a placeholder identifier. Where a 2.x device was
+    created alongside it the two have to be merged, or the entities end up
+    split between them, showing two different device names, and re-keying
+    collides on the identifier.
+    """
     device_registry = dr.async_get(hass)
-    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
-        if ("my_integration", entry.data["serial"]) in device.identifiers:
-            device_registry.async_update_device(
-                device.id, new_identifiers={(DOMAIN, serial)}
+    entity_registry = er.async_get(hass)
+    devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+    placeholder = ("my_integration", entry.data["serial"])
+
+    # The 1.x entry is the one the user has had all along, with whatever area,
+    # name and labels they gave it, so it is the one that survives.
+    keep = next((d for d in devices if placeholder in d.identifiers), None)
+    if keep is None:
+        keep = next((d for d in devices if (DOMAIN, serial) in d.identifiers), None)
+    if keep is None:
+        return
+
+    for device in devices:
+        if device.id == keep.id:
+            continue
+        for registry_entry in er.async_entries_for_device(
+            entity_registry, device.id, include_disabled_entities=True
+        ):
+            entity_registry.async_update_entity(
+                registry_entry.entity_id, device_id=keep.id
             )
+        device_registry.async_remove_device(device.id)
+
+    if keep.identifiers != {(DOMAIN, serial)}:
+        device_registry.async_update_device(
+            keep.id, new_identifiers={(DOMAIN, serial)}
+        )

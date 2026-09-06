@@ -86,7 +86,7 @@ def _validate(user_input: Mapping[str, Any]) -> tuple[dict[str, str], str | None
 class BesenConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the Besen config flow."""
 
-    VERSION = 4
+    VERSION = 5
 
     def __init__(self) -> None:
         self._discovered: BluetoothServiceInfoBleak | None = None
