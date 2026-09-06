@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Test and lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local captures from tools/. These contain the charger serial, and a Wi-Fi
+# frame carries the network password in clear text: never commit them.
+*.pcap
+*.pcapng
+capture*.txt
+*.capture
+diagnostics*.json
+config_entry-besen-*.json
