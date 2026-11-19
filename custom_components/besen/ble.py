@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import warnings
 from collections.abc import Callable
 
 from bleak import BleakClient
@@ -36,6 +37,18 @@ def ble_name_for(serial: str) -> str:
     ``1122334455667788`` advertises as ``ACP#EVSE7788``.
     """
     return f"ACP#EVSE{serial[-4:].upper()}"
+
+
+def _reported_mtu(client: BleakClient) -> int | None:
+    """Return the MTU the backend reports, without BlueZ's warning.
+
+    BlueZ only knows the MTU once acquired through a private call, and warns
+    when it falls back to the 23 byte default, which is what split writes
+    assume anyway.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        return getattr(client, "mtu_size", None)
 
 
 def _short_uuid(uuid: str) -> str:
@@ -330,9 +343,16 @@ class BesenBleTransport:
                 await client.disconnect()
                 return False
 
+            # Ready before subscribing: the charger speaks as soon as
+            # notifications are on, before start_notify returns, and its login
+            # has to be answered on this link.
+            self._client = client
+            self._write = write
+            self._frames.reset()
             try:
                 await client.start_notify(notify, self._handle_notify)
             except Exception as err:  # noqa: BLE001
+                self._client = self._write = None
                 # Usually a weak link. Clear the GATT cache too: the services
                 # may have come from it, and a stale copy fails the same way.
                 self.last_error = f"subscribe: {type(err).__name__}: {err}"
@@ -349,12 +369,9 @@ class BesenBleTransport:
                     _LOGGER.debug("Error while closing %s: %s", self.name, close_err)
                 return False
 
-            self._client = client
-            self._write = write
-            self._frames.reset()
             self.write_uuid = _short_uuid(write.uuid)
             self.notify_uuid = _short_uuid(notify.uuid)
-            self.mtu = getattr(client, "mtu_size", None)
+            self.mtu = _reported_mtu(client)
             # These modules can drop a write issued before their serial
             # bridge is ready.
             await asyncio.sleep(1.0)
@@ -446,7 +463,7 @@ class BesenBleTransport:
         if client is None or write is None or not client.is_connected:
             return False
 
-        self.mtu = getattr(client, "mtu_size", None)
+        self.mtu = _reported_mtu(client)
         # write-with-response gives flow control; use it when offered.
         response = "write" in write.properties
         _LOGGER.debug(
