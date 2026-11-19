@@ -123,6 +123,7 @@ async def async_get_config_entry_diagnostics(
             "transport": coordinator.transport_name,
             "rated_current": coordinator.rated_current,
             "unlocked": coordinator.unlocked,
+            "password_rejected": coordinator.password_rejected,
             "wifi_credentials_configured": bool(entry.options.get(OPT_WIFI_SSID)),
         },
         "bluetooth": _bluetooth_report(hass, entry),

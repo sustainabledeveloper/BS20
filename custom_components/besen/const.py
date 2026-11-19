@@ -113,6 +113,8 @@ CMD_TEMPERATURE_UNIT_STATE: Final = 0x0112
 CMD_WEEKLY_PLAN_STATE: Final = 0x010E
 CMD_WIFI_STATE: Final = 0x010A
 CMD_MONITORING_STATE: Final = 0x0162
+#: The charger's answer to a login (0x8002) carrying the wrong password.
+CMD_PASSWORD_ERROR: Final = 0x0155
 
 #: Sub-operation byte shared by the 0x81xx family.
 SUBOP_SET: Final = 0x01

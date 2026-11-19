@@ -44,6 +44,7 @@ from .const import (
     CMD_LOGIN_ACK,
     CMD_LOGIN_CONFIRM,
     CMD_MONITORING_STATE,
+    CMD_PASSWORD_ERROR,
     CMD_LOGIN_REQUEST,
     CMD_SET_MAX_CURRENT,
     CMD_START_CHARGE,
@@ -128,6 +129,7 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._login_frames = 0
         self._sweep_done = False
         self._wifi_repaired = False
+        self.password_rejected = False
         self.bluetooth_last_attempt: str | None = None
         self.bluetooth_frames = 0
         self.bluetooth_triggers = {"advertisement": 0, "timer": 0, "reconnect": 0}
@@ -240,9 +242,21 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         command = frame.command
         try:
-            if command in (CMD_LOGIN_REQUEST, CMD_LOGIN_CONFIRM):
+            if command == CMD_PASSWORD_ERROR:
+                self._handle_password_error()
+            elif command in (CMD_LOGIN_REQUEST, CMD_LOGIN_CONFIRM):
                 self._data.update(proto.parse_login(frame.payload))
                 self._refresh_device_registry()
+                if command == CMD_LOGIN_CONFIRM:
+                    # Only sent once the password is accepted.
+                    self.password_rejected = False
+                elif self.password_rejected and addr is None:
+                    # Over Bluetooth the charger repeats its login until one
+                    # succeeds, and answering it with the same password
+                    # achieves nothing. Over the network the answers keep
+                    # its status broadcasts coming, so they continue.
+                    self.async_set_updated_data(self._data)
+                    return
                 # Both halves are acknowledged, but only the confirm half is
                 # followed by the settings query. Querying on both, or replying
                 # with another 0x8002, keeps the charger repeating the exchange.
@@ -308,6 +322,23 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         self.async_set_updated_data(self._data)
+
+    @callback
+    def _handle_password_error(self) -> None:
+        """Ask for the password once the charger has refused it.
+
+        Over the network the charger broadcasts its status regardless, but
+        over Bluetooth it sends nothing until a login succeeds.
+        """
+        if self.password_rejected:
+            return
+        self.password_rejected = True
+        _LOGGER.error(
+            "Charger %s rejected the stored password: commands are ignored, and "
+            "over Bluetooth no status arrives, until it is corrected",
+            self.serial,
+        )
+        self.entry.async_start_reauth(self.hass)
 
     def _handle_charge_record(self, frame: proto.Frame) -> None:
         """Record uploads are broadcast until acknowledged."""
