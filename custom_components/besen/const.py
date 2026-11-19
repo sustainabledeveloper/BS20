@@ -45,6 +45,15 @@ BLE_FALLBACK_DELAY: Final = 120
 #: Delay before the first attempt when the charger has never been seen.
 BLE_INITIAL_DELAY: Final = 20
 BLE_RETRY_INTERVAL: Final = 60
+#: Retry this soon after the Bluetooth link drops on its own.
+BLE_RECONNECT_DELAY: Final = 5
+#: An advertisement starts at most one attempt per this many seconds.
+BLE_ADVERT_DEBOUNCE: Final = 10
+#: Only an advertisement this recent is worth connecting on.
+BLE_ADVERT_MAX_AGE: Final = 10
+#: How often the last advertisement is checked. Home Assistant only calls back
+#: when an advertisement's content changes, and a charger repeats the same one.
+BLE_ADVERT_POLL_INTERVAL: Final = 5
 
 #: Field layout of the Wi-Fi configuration payload (command 0x010A / 0x810A).
 #: The port field reads 28376, the port the charger broadcasts to.
@@ -104,6 +113,8 @@ CMD_TEMPERATURE_UNIT_STATE: Final = 0x0112
 CMD_WEEKLY_PLAN_STATE: Final = 0x010E
 CMD_WIFI_STATE: Final = 0x010A
 CMD_MONITORING_STATE: Final = 0x0162
+#: The charger's answer to a login (0x8002) carrying the wrong password.
+CMD_PASSWORD_ERROR: Final = 0x0155
 
 #: Sub-operation byte shared by the 0x81xx family.
 SUBOP_SET: Final = 0x01

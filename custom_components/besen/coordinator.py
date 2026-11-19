@@ -7,13 +7,14 @@ import logging
 import random
 import time
 from datetime import datetime, timedelta, timezone
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -43,6 +44,7 @@ from .const import (
     CMD_LOGIN_ACK,
     CMD_LOGIN_CONFIRM,
     CMD_MONITORING_STATE,
+    CMD_PASSWORD_ERROR,
     CMD_LOGIN_REQUEST,
     CMD_SET_MAX_CURRENT,
     CMD_START_CHARGE,
@@ -51,8 +53,12 @@ from .const import (
     EVENT_CHARGE_RECORD,
     LIMIT_UNLIMITED,
     OFFLINE_TIMEOUT,
+    BLE_ADVERT_DEBOUNCE,
+    BLE_ADVERT_MAX_AGE,
+    BLE_ADVERT_POLL_INTERVAL,
     BLE_FALLBACK_DELAY,
     BLE_INITIAL_DELAY,
+    BLE_RECONNECT_DELAY,
     BLE_RETRY_INTERVAL,
     OPT_ACK_RECORDS,
     OPT_ENABLE_BLE,
@@ -67,6 +73,8 @@ from .const import (
 from . import protocol as proto
 
 if TYPE_CHECKING:
+    from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+
     from .ble import BesenBleTransport
 
 _LOGGER = logging.getLogger(__name__)
@@ -111,6 +119,9 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._transport: asyncio.DatagramTransport | None = None
         self._ble: "BesenBleTransport | None" = None
         self._ble_retry: CALLBACK_TYPE | None = None
+        self._ble_task: asyncio.Task[None] | None = None
+        self._ble_unsub: list[CALLBACK_TYPE] = []
+        self._ble_last_try: float | None = None
         self._watchdog: CALLBACK_TYPE | None = None
         self._online = False
         self._unlocked = True
@@ -118,8 +129,11 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._login_frames = 0
         self._sweep_done = False
         self._wifi_repaired = False
+        self.password_rejected = False
         self.bluetooth_last_attempt: str | None = None
         self.bluetooth_frames = 0
+        self.bluetooth_triggers = {"advertisement": 0, "timer": 0, "reconnect": 0}
+        self.bluetooth_last_connected: str | None = None
         self.wifi_provision_attempts = 0
         self._last_transport = "none"
 
@@ -162,24 +176,49 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         is already off the network at startup.
         """
         self._ble = transport
-        if self.entry.options.get(OPT_ENABLE_BLE, False):
-            _LOGGER.info(
-                "Bluetooth fallback armed for %s; looking for %s in %s seconds",
-                self.serial,
-                transport.name,
-                BLE_INITIAL_DELAY,
-            )
+        if not self.entry.options.get(OPT_ENABLE_BLE, False):
+            return
+        _LOGGER.info(
+            "Bluetooth fallback armed for %s; looking for %s in %s seconds, or "
+            "as soon as it advertises",
+            self.serial,
+            transport.name,
+            BLE_INITIAL_DELAY,
+        )
         self._schedule_bluetooth_attempt(BLE_INITIAL_DELAY)
+        # Connect while the charger is advertising: on a weak link it is heard
+        # only every few minutes, and an attempt made on an older sighting
+        # finds no adapter that can still reach it.
+        if unsub := transport.async_track_advertisements(
+            self._async_bluetooth_advertised
+        ):
+            self._ble_unsub.append(unsub)
+        self._ble_unsub.append(
+            async_track_time_interval(
+                self.hass,
+                self._async_check_last_advertisement,
+                timedelta(seconds=BLE_ADVERT_POLL_INTERVAL),
+            )
+        )
 
     async def async_shutdown(self) -> None:
         """Cancel timers and stop touching Home Assistant."""
-        for cancel in (self._watchdog, self._ble_retry):
+        for cancel in (self._watchdog, self._ble_retry, *self._ble_unsub):
             if cancel is not None:
                 cancel()
         self._watchdog = self._ble_retry = None
+        self._ble_unsub.clear()
         self._transport = None
-        if self._ble is not None:
-            await self._ble.async_disconnect()
+        # Cleared first so a link dropping from here on schedules nothing.
+        ble, self._ble = self._ble, None
+        if self._ble_task is not None and not self._ble_task.done():
+            # A connection completing after unload would hold the charger's
+            # only Bluetooth slot.
+            self._ble_task.cancel()
+            await asyncio.wait({self._ble_task})
+        self._ble_task = None
+        if ble is not None:
+            await ble.async_disconnect()
         await super().async_shutdown()
 
     # --- inbound ------------------------------------------------------------
@@ -203,9 +242,21 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         command = frame.command
         try:
-            if command in (CMD_LOGIN_REQUEST, CMD_LOGIN_CONFIRM):
+            if command == CMD_PASSWORD_ERROR:
+                self._handle_password_error()
+            elif command in (CMD_LOGIN_REQUEST, CMD_LOGIN_CONFIRM):
                 self._data.update(proto.parse_login(frame.payload))
                 self._refresh_device_registry()
+                if command == CMD_LOGIN_CONFIRM:
+                    # Only sent once the password is accepted.
+                    self.password_rejected = False
+                elif self.password_rejected and addr is None:
+                    # Over Bluetooth the charger repeats its login until one
+                    # succeeds, and answering it with the same password
+                    # achieves nothing. Over the network the answers keep
+                    # its status broadcasts coming, so they continue.
+                    self.async_set_updated_data(self._data)
+                    return
                 # Both halves are acknowledged, but only the confirm half is
                 # followed by the settings query. Querying on both, or replying
                 # with another 0x8002, keeps the charger repeating the exchange.
@@ -272,6 +323,23 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self.async_set_updated_data(self._data)
 
+    @callback
+    def _handle_password_error(self) -> None:
+        """Ask for the password once the charger has refused it.
+
+        Over the network the charger broadcasts its status regardless, but
+        over Bluetooth it sends nothing until a login succeeds.
+        """
+        if self.password_rejected:
+            return
+        self.password_rejected = True
+        _LOGGER.error(
+            "Charger %s rejected the stored password: commands are ignored, and "
+            "over Bluetooth no status arrives, until it is corrected",
+            self.serial,
+        )
+        self.entry.async_start_reauth(self.hass)
+
     def _handle_charge_record(self, frame: proto.Frame) -> None:
         """Record uploads are broadcast until acknowledged."""
         record = proto.parse_charge_record(frame.payload)
@@ -302,7 +370,18 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         ``device_info`` is already stale by then.
         """
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, self.serial)})
+        # Looked up within this entry: identifiers are no longer unique across
+        # config entries, and async_get_device stops working in 2027.8.
+        device = next(
+            (
+                device
+                for device in dr.async_entries_for_config_entry(
+                    registry, self.entry.entry_id
+                )
+                if (DOMAIN, self.serial) in device.identifiers
+            ),
+            None,
+        )
         if device is None:
             return
         updates: dict[str, str] = {}
@@ -369,25 +448,98 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     # --- bluetooth fallback -------------------------------------------------
 
+    @property
+    def _reachable(self) -> bool:
+        """Whether traffic can flow right now, so Bluetooth has nothing to do.
+
+        Online over Bluetooth with the link down only means the watchdog has
+        not caught up with a drop yet.
+        """
+        return self._online and (
+            self._last_transport == "wifi"
+            or (self._ble is not None and self._ble.connected)
+        )
+
     @callback
-    def _schedule_bluetooth_attempt(self, delay: float) -> None:
+    def _schedule_bluetooth_attempt(self, delay: float, trigger: str = "timer") -> None:
         """Queue a Bluetooth connection attempt while the network is silent."""
         if self._ble is None or not self.entry.options.get(OPT_ENABLE_BLE, False):
             return
         if self._ble_retry is not None:
             self._ble_retry()
         self._ble_retry = async_call_later(
-            self.hass, max(1.0, delay), self._async_try_bluetooth
+            self.hass, max(1.0, delay), partial(self._async_bluetooth_timer, trigger)
         )
 
-    async def _async_try_bluetooth(self, _now: datetime) -> None:
-        """Reach the charger over Bluetooth because the network cannot."""
+    @callback
+    def _async_bluetooth_timer(self, trigger: str, _now: datetime) -> None:
         self._ble_retry = None
+        self._start_bluetooth_attempt(trigger)
+
+    @callback
+    def _async_bluetooth_advertised(self, info: BluetoothServiceInfoBleak) -> None:
+        """Connect on a fresh advertisement, while the charger is listening."""
+        ble = self._ble
+        if ble is None or ble.connected or self._reachable:
+            return
+        # Registering replays the last sighting, which can be minutes old.
+        if ble.advert_age(info) > BLE_ADVERT_MAX_AGE:
+            return
+        if (
+            self._ble_last_try is not None
+            and time.monotonic() - self._ble_last_try < BLE_ADVERT_DEBOUNCE
+        ):
+            return
+        self._start_bluetooth_attempt("advertisement", info)
+
+    @callback
+    def _async_check_last_advertisement(self, _now: datetime) -> None:
+        """Catch the repeated advertisements Home Assistant does not report."""
+        if self._ble is None or self._ble.connected or self._reachable:
+            return
+        if (info := self._ble.last_advertisement()) is not None:
+            self._async_bluetooth_advertised(info)
+
+    @callback
+    def handle_ble_disconnect(self) -> None:
+        """Retry soon after the Bluetooth link drops on its own.
+
+        Without this the next attempt waits for the offline watchdog. Closing
+        the link on purpose (network back, unload) does not land here.
+        """
+        if self._ble is None or self.hass.is_stopping:
+            return
+        self._schedule_bluetooth_attempt(BLE_RECONNECT_DELAY, "reconnect")
+
+    @callback
+    def _start_bluetooth_attempt(
+        self, trigger: str, info: BluetoothServiceInfoBleak | None = None
+    ) -> None:
+        """Run one attempt in the background, never two at once."""
+        if self._ble_task is not None and not self._ble_task.done():
+            return
+        self.bluetooth_triggers[trigger] += 1
+        self._ble_task = self.entry.async_create_background_task(
+            self.hass,
+            self._async_try_bluetooth(info),
+            f"{DOMAIN} {self.serial} bluetooth connect",
+        )
+
+    async def _async_try_bluetooth(
+        self, info: BluetoothServiceInfoBleak | None = None
+    ) -> None:
+        """Reach the charger over Bluetooth because the network cannot."""
+        # This attempt stands in for any queued one.
+        if self._ble_retry is not None:
+            self._ble_retry()
+            self._ble_retry = None
+        self._ble_last_try = time.monotonic()
         self.bluetooth_last_attempt = dt_util.utcnow().isoformat()
-        if self._ble is None or self._online:
+        if self._ble is None or self._reachable:
             return
         _LOGGER.debug("Trying to reach %s over Bluetooth", self._ble.name)
-        if await self._ble.async_connect():
+        if await self._ble.async_connect(info):
+            self.bluetooth_last_connected = dt_util.utcnow().isoformat()
             # Speak first: over UDP the charger broadcasts unprompted, but
             # over Bluetooth it stays silent until asked.
             self.async_request_device_info()
@@ -496,7 +648,11 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._transport.sendto(frame, (self._host, self._port))
 
     def _require_control(self) -> None:
-        if not self._online:
+        # Online alone is not enough: after a Bluetooth drop the charger stays
+        # online until the watchdog fires, with no link to send on.
+        if not self._online or not (
+            (self._ble is not None and self._ble.connected) or self._host is not None
+        ):
             raise HomeAssistantError(
                 f"Charger {self.serial} is not reachable; no command was sent."
             )

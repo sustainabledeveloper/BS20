@@ -12,9 +12,11 @@ from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 
 from homeassistant.config_entries import (
     ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -127,6 +129,8 @@ class BesenConfigFlow(ConfigFlow, domain=DOMAIN):
                     entry,
                     options={**entry.options, OPT_BLE_ADDRESS: discovery_info.address},
                 )
+                if entry.state is ConfigEntryState.LOADED:
+                    self.hass.config_entries.async_schedule_reload(entry.entry_id)
             return self.async_abort(reason="already_configured")
 
         self._discovered = discovery_info
@@ -256,7 +260,7 @@ class BesenConfigFlow(ConfigFlow, domain=DOMAIN):
         return BesenOptionsFlow()
 
 
-class BesenOptionsFlow(OptionsFlow):
+class BesenOptionsFlow(OptionsFlowWithReload):
     """Options for one charger."""
 
     async def async_step_init(

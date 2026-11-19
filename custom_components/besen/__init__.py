@@ -160,7 +160,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: BesenConfigEntry) -> boo
     _async_attach_bluetooth(hass, coordinator)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     return True
 
 
@@ -186,13 +185,10 @@ def _async_attach_bluetooth(hass: HomeAssistant, coordinator: BesenCoordinator) 
             coordinator.serial,
             coordinator.handle_ble_frame,
             coordinator.entry.options.get(OPT_BLE_ADDRESS) or None,
+            on_disconnect=coordinator.handle_ble_disconnect,
         )
     )
     _LOGGER.debug("Bluetooth fallback armed for %s", coordinator.serial)
-
-
-async def _async_reload_entry(hass: HomeAssistant, entry: BesenConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: BesenConfigEntry) -> bool:
