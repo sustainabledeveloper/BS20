@@ -333,8 +333,20 @@ class BesenBleTransport:
             try:
                 await client.start_notify(notify, self._handle_notify)
             except Exception as err:  # noqa: BLE001
-                _LOGGER.error("Could not subscribe to %s: %s", _short_uuid(notify.uuid), err)
-                await client.disconnect()
+                # Usually a weak link. Clear the GATT cache too: the services
+                # may have come from it, and a stale copy fails the same way.
+                self.last_error = f"subscribe: {type(err).__name__}: {err}"
+                _LOGGER.warning(
+                    "Could not subscribe to %s on %s: %s",
+                    _short_uuid(notify.uuid),
+                    self.name,
+                    err,
+                )
+                try:
+                    await client.clear_cache()
+                    await client.disconnect()
+                except Exception as close_err:  # noqa: BLE001 - already failing
+                    _LOGGER.debug("Error while closing %s: %s", self.name, close_err)
                 return False
 
             self._client = client

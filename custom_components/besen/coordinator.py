@@ -339,7 +339,18 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         ``device_info`` is already stale by then.
         """
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, self.serial)})
+        # Looked up within this entry: identifiers are no longer unique across
+        # config entries, and async_get_device stops working in 2027.8.
+        device = next(
+            (
+                device
+                for device in dr.async_entries_for_config_entry(
+                    registry, self.entry.entry_id
+                )
+                if (DOMAIN, self.serial) in device.identifiers
+            ),
+            None,
+        )
         if device is None:
             return
         updates: dict[str, str] = {}
@@ -606,7 +617,11 @@ class BesenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._transport.sendto(frame, (self._host, self._port))
 
     def _require_control(self) -> None:
-        if not self._online:
+        # Online alone is not enough: after a Bluetooth drop the charger stays
+        # online until the watchdog fires, with no link to send on.
+        if not self._online or not (
+            (self._ble is not None and self._ble.connected) or self._host is not None
+        ):
             raise HomeAssistantError(
                 f"Charger {self.serial} is not reachable; no command was sent."
             )
