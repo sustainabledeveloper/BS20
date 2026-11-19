@@ -51,6 +51,8 @@ def _bluetooth_report(hass: HomeAssistant, entry: BesenConfigEntry) -> dict[str,
     report["connected"] = bool(transport and transport.connected)
     report["retry_pending"] = coordinator.bluetooth_retry_pending
     report["last_attempt_at"] = coordinator.bluetooth_last_attempt
+    report["last_connected_at"] = coordinator.bluetooth_last_connected
+    report["attempts_by_trigger"] = dict(coordinator.bluetooth_triggers)
     report["frames_received"] = coordinator.bluetooth_frames
     report["wifi_provision_attempts"] = coordinator.wifi_provision_attempts
     if transport is not None:
@@ -65,6 +67,17 @@ def _bluetooth_report(hass: HomeAssistant, entry: BesenConfigEntry) -> dict[str,
         report["connection_attempts"] = transport.attempts
         report["last_error"] = transport.last_error
         report["rssi_at_last_attempt"] = transport.last_rssi
+        # How stale the newest sighting is says more than whether one exists.
+        last = transport.last_advertisement()
+        report["last_advertisement"] = (
+            None
+            if last is None
+            else {
+                "address": last.address,
+                "rssi": last.rssi,
+                "age_seconds": round(transport.advert_age(last), 1),
+            }
+        )
 
     try:
         report["scanner_count"] = bluetooth.async_scanner_count(hass, connectable=True)

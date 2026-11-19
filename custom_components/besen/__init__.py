@@ -185,6 +185,7 @@ def _async_attach_bluetooth(hass: HomeAssistant, coordinator: BesenCoordinator) 
             coordinator.serial,
             coordinator.handle_ble_frame,
             coordinator.entry.options.get(OPT_BLE_ADDRESS) or None,
+            on_disconnect=coordinator.handle_ble_disconnect,
         )
     )
     _LOGGER.debug("Bluetooth fallback armed for %s", coordinator.serial)

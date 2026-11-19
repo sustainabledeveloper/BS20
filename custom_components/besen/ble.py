@@ -18,7 +18,7 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
 from homeassistant.components import bluetooth
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 
 from .const import (
     BLE_CHARACTERISTIC_PAIRS,
@@ -55,11 +55,13 @@ class BesenBleTransport:
         serial: str,
         on_frame: Callable[[bytes], None],
         address: str | None = None,
+        on_disconnect: Callable[[], None] | None = None,
     ) -> None:
         self.hass = hass
         self.serial = serial
         self.address = address
         self._on_frame = on_frame
+        self._on_disconnect = on_disconnect
         self._client: BleakClient | None = None
         self._write: BleakGATTCharacteristic | None = None
         self._frames = FrameReassembler()
@@ -69,6 +71,10 @@ class BesenBleTransport:
         self.attempts = 0
         self.last_error: str | None = None
         self.last_rssi: int | None = None
+        #: Where the charger was last seen, so a name-only setup can still
+        #: look up its latest advertisement.
+        self.last_address: str | None = None
+        self._unseen_logged = False
         # Counted separately from decoded frames, so a notification that
         # arrives but does not parse is distinguishable from none arriving.
         self.notifications = 0
@@ -111,6 +117,103 @@ class BesenBleTransport:
             )
             return False
         return True
+
+    def matches(self, info: bluetooth.BluetoothServiceInfoBleak) -> bool:
+        """Whether an advertisement comes from this charger."""
+        if self.address and info.address.upper() == self.address.upper():
+            return True
+        return (info.name or "").upper() == self.name
+
+    @callback
+    def async_track_advertisements(
+        self, on_advert: Callable[[bluetooth.BluetoothServiceInfoBleak], None]
+    ) -> CALLBACK_TYPE | None:
+        """Call ``on_advert`` for this charger's connectable advertisements.
+
+        Non-connectable ones are left out: the charger advertises that way
+        while a phone holds its only connection.
+        """
+        if self.address:
+            matcher = bluetooth.BluetoothCallbackMatcher(
+                address=self.address.upper(), connectable=True
+            )
+        else:
+            matcher = bluetooth.BluetoothCallbackMatcher(
+                local_name=f"{BLE_NAME_PREFIX}*", connectable=True
+            )
+
+        @callback
+        def _handle(
+            info: bluetooth.BluetoothServiceInfoBleak,
+            _change: bluetooth.BluetoothChange,
+        ) -> None:
+            # The name pattern also matches other chargers.
+            if self.matches(info):
+                self.last_address = info.address
+                on_advert(info)
+
+        try:
+            return bluetooth.async_register_callback(
+                self.hass, _handle, matcher, bluetooth.BluetoothScanningMode.ACTIVE
+            )
+        except RuntimeError:
+            # No Bluetooth stack; available() reports it on the first attempt.
+            return None
+
+    def last_advertisement(self) -> bluetooth.BluetoothServiceInfoBleak | None:
+        """Return the latest connectable advertisement heard, however old."""
+        address = self.last_address or self.address
+        if not address:
+            return None
+        try:
+            return bluetooth.async_last_service_info(self.hass, address.upper(), True)
+        except RuntimeError:
+            return None
+
+    @staticmethod
+    def advert_age(info: bluetooth.BluetoothServiceInfoBleak) -> float:
+        """Seconds since ``info`` was heard."""
+        return bluetooth.MONOTONIC_TIME() - info.time
+
+    def _in_range(self, address: str) -> bool:
+        """Whether some adapter or proxy currently has the charger listed.
+
+        Home Assistant keeps a sighting for minutes after the adapters have
+        dropped it, and connecting on such a sighting fails with "no backend
+        with an available connection slot".
+        """
+        try:
+            return bool(
+                bluetooth.async_scanner_devices_by_address(self.hass, address, True)
+            )
+        except RuntimeError:
+            return False
+
+    def _log_unseen(self, info: bluetooth.BluetoothServiceInfoBleak | None) -> None:
+        """Say once per outage that no adapter can see the charger."""
+        self.last_error = "the charger is not visible to any Bluetooth adapter"
+        if self._unseen_logged:
+            _LOGGER.debug("%s is still not visible over Bluetooth", self.name)
+            return
+        self._unseen_logged = True
+        if info is not None:
+            self.last_address = info.address
+        last = self.last_advertisement() or info
+        if last is None:
+            _LOGGER.info(
+                "%s is not visible to any Bluetooth adapter or proxy and has not "
+                "been seen since startup; connecting as soon as it advertises",
+                self.name,
+            )
+            return
+        _LOGGER.info(
+            "%s (%s) is not visible to any Bluetooth adapter or proxy; last heard "
+            "%d seconds ago at rssi %s. Connecting as soon as it advertises again",
+            self.name,
+            last.address,
+            self.advert_age(last),
+            last.rssi,
+        )
 
     def find_device(self) -> bluetooth.BluetoothServiceInfoBleak | None:
         """Return this charger among the devices Home Assistant can see.
@@ -167,23 +270,32 @@ class BesenBleTransport:
 
     # --- connection ---------------------------------------------------------
 
-    async def async_connect(self) -> bool:
-        """Connect and subscribe, returning whether the charger is reachable."""
+    async def async_connect(
+        self, info: bluetooth.BluetoothServiceInfoBleak | None = None
+    ) -> bool:
+        """Connect and subscribe, returning whether the charger is reachable.
+
+        ``info`` is an advertisement just heard; without one the charger is
+        looked up among the devices Home Assistant has seen.
+        """
         async with self._lock:
             if self.connected:
                 return True
             if not self.available():
                 return False
-            info = self.find_device()
             if info is None:
-                _LOGGER.debug(
-                    "%s is not visible to any Bluetooth adapter or proxy", self.name
-                )
+                info = self.find_device()
+            if info is None or not self._in_range(info.address):
+                self._log_unseen(info)
                 return False
 
             self.attempts += 1
+            self.last_address = info.address
             self.last_rssi = info.rssi
             _LOGGER.debug("Connecting to %s (%s), rssi %s", self.name, info.address, info.rssi)
+            # No ble_device_callback: bleak-retry-connector 4.x ignores it, and
+            # Home Assistant's client resolves the address to whichever adapter
+            # currently sees the charger at connect time.
             try:
                 client = await establish_connection(
                     BleakClientWithServiceCache,
@@ -193,6 +305,10 @@ class BesenBleTransport:
                     timeout=BLE_CONNECT_TIMEOUT,
                 )
             except Exception as err:  # noqa: BLE001 - bleak raises broadly
+                # Nothing to clear on "failed to discover services": bleak only
+                # waits for discovery when it has no cached services, and the
+                # connector clears its cache itself on the errors a stale one
+                # causes.
                 self.last_error = f"{type(err).__name__}: {err}" if str(err) else type(err).__name__
                 _LOGGER.warning(
                     "Could not connect to %s at rssi %s: %s",
@@ -203,6 +319,7 @@ class BesenBleTransport:
                 return False
 
             self.last_error = None
+            self._unseen_logged = False
             write, notify = self._pick_characteristics(client)
             if write is None or notify is None:
                 _LOGGER.error(
@@ -272,11 +389,19 @@ class BesenBleTransport:
             next(iter(notifiable.values()), None),
         )
 
-    def _handle_disconnect(self, _client: BleakClient) -> None:
+    def _handle_disconnect(self, client: BleakClient) -> None:
+        # async_disconnect forgets the client before closing it, so only a
+        # link that was in use and went down on its own still matches here.
+        # Drops during a connection attempt never set it either.
+        if client is not self._client:
+            _LOGGER.debug("Bluetooth link to %s closed", self.name)
+            return
         _LOGGER.info("Bluetooth link to %s dropped", self.name)
         self._client = None
         self._write = None
         self._frames.reset()
+        if self._on_disconnect is not None:
+            self._on_disconnect()
 
     async def async_disconnect(self) -> None:
         async with self._lock:
@@ -356,5 +481,8 @@ class BesenBleTransport:
             self.last_write_error = f"{type(err).__name__}: {err}"
             _LOGGER.warning("Bluetooth write to %s failed: %s", self.name, err)
             await self.async_disconnect()
+            # Closed by us, but because the link failed: reconnect.
+            if self._on_disconnect is not None:
+                self._on_disconnect()
             return False
         return True
